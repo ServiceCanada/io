@@ -41,38 +41,38 @@ my $prism = Prism::Toolkit->new( $config );
 
 $log->INFO( "Analytics pull started" );
 
-# foreach my $resource ( @{ $config->{'catalog'} } )
-# {
-#     my $properties = { %{ $config->{'http'}->{'common'} } , %{ $resource } };
-#
-#     my $reportid = $http->post(
-#         $properties->{'prefetch'},
-#         [ 'X-WSSE' => generate( $username, $secret ) ],
-#         $stache->render( $base->child( $properties->{'content'} )->slurp_utf8, { to => $to, from => $from } )
-#     );
-#
-#     my ( $wait ) = ( 1 );
-#
-#     while( $wait )
-#     {
-#         my $report = $http->post(
-#             $properties->{'uri'},
-#             [ 'X-WSSE' => generate( $username, $secret ) ],
-#             $reportid->content
-#         );
-#
-#         if ( $report->content =~ /"error":"report_not_ready"/ )
-#         {
-#             sleep $properties->{'sleep'};
-#             next;
-#         }
-#
-#         $base->child( $properties->{'store'} )->absolute->spew_utf8( $report->content );
-#         $wait = 0;
-#     }
-#
-#       $log->INFO(" [report] ".$properties->{'title'} . " downloaded "  );
-# }
+foreach my $resource ( @{ $config->{'catalog'} } )
+{
+    my $properties = { %{ $config->{'http'}->{'common'} } , %{ $resource } };
+
+    my $reportid = $http->post(
+        $properties->{'prefetch'},
+        [ 'X-WSSE' => generate( $username, $secret ) ],
+        $stache->render( $base->child( $properties->{'content'} )->slurp_utf8, { to => $to, from => $from } )
+    );
+
+    my ( $wait ) = ( 1 );
+
+    while( $wait )
+    {
+        my $report = $http->post(
+            $properties->{'uri'},
+            [ 'X-WSSE' => generate( $username, $secret ) ],
+            $reportid->content
+        );
+
+        if ( $report->content =~ /"error":"report_not_ready"/ )
+        {
+            sleep $properties->{'sleep'};
+            next;
+        }
+
+        $base->child( $properties->{'store'} )->absolute->spew_utf8( $report->content );
+        $wait = 0;
+    }
+
+      $log->INFO(" [report] ".$properties->{'title'} . " downloaded "  );
+}
 
 $log->INFO( "Analytics pull completed" );
 
