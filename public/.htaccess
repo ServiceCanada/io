@@ -37,6 +37,15 @@ DirectoryIndex index.json index.html index.htm index.cgi
 
 Options -MultiViews
 
+# ----------------------------------------------------------------------
+# | Errors                                                             |
+# ----------------------------------------------------------------------
+
+
+ErrorDocument 404  /404.json
+ErrorDocument 403  /403.json
+ErrorDocument 500  /500.json
+
 # ######################################################################
 # # MEDIA TYPES AND CHARACTER ENCODINGS                                #
 # ######################################################################

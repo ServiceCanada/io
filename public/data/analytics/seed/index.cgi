@@ -30,7 +30,7 @@ my ( $config, $http, $json, $base, $stache, $log, $from, $to ) = (
     JSON::MaybeXS->new( utf8 => 1 ),
     path($0)->parent,
     Mustache::Simple->new,
-    Log::Tiny->new( path($0)->parent(2)->child( 'metrics/pull.log') ),
+    Log::Tiny->new( path($0)->parent(2)->child( 'metrics/pull.log') , '%t [seeder] %m%n' ),
     POSIX::strftime( '%Y-%m-%d', localtime( time() - (31*24*60*60) ) ),
     POSIX::strftime( '%Y-%m-%d', localtime( time() - (1*24*60*60)) )
 );
@@ -39,44 +39,42 @@ my ( $username, $secret ) = ( $config->{'http'}->{'creds'}->{'username'},  $conf
 
 my $prism = Prism::Toolkit->new( $config );
 
-$log->INFO( "Analytics pull started" );
+$log->INFO( "Analytics Data Pull started" );
 
-# foreach my $resource ( @{ $config->{'catalog'} } )
-# {
-#     my $properties = { %{ $config->{'http'}->{'common'} } , %{ $resource } };
-#
-#     my $reportid = $http->post(
-#         $properties->{'prefetch'},
-#         [ 'X-WSSE' => generate( $username, $secret ) ],
-#         $stache->render( $base->child( $properties->{'content'} )->slurp_utf8, { to => $to, from => $from } )
-#     );
-#
-#     my ( $wait ) = ( 1 );
-#
-#     while( $wait )
-#     {
-#         my $report = $http->post(
-#             $properties->{'uri'},
-#             [ 'X-WSSE' => generate( $username, $secret ) ],
-#             $reportid->content
-#         );
-#
-#         if ( $report->content =~ /"error":"report_not_ready"/ )
-#         {
-#             sleep $properties->{'sleep'};
-#             next;
-#         }
-#
-#         $base->child( $properties->{'store'} )->absolute->spew_utf8( $report->content );
-#         $wait = 0;
-#     }
-#
-#       $log->INFO(" [report] ".$properties->{'title'} . " downloaded "  );
-# }
+foreach my $resource ( @{ $config->{'catalog'} } )
+{
+    my $properties = { %{ $config->{'http'}->{'common'} } , %{ $resource } };
 
-$log->INFO( "Analytics pull completed" );
+    my $reportid = $http->post(
+        $properties->{'prefetch'},
+        [ 'X-WSSE' => generate( $username, $secret ) ],
+        $stache->render( $base->child( $properties->{'content'} )->slurp_utf8, { to => $to, from => $from } )
+    );
 
-$prism->message( 'mario@beelabs.ca', 'We have completed your order', 'This is a very short message' );
+    my ( $wait ) = ( 1 );
+
+    while( $wait )
+    {
+        my $report = $http->post(
+            $properties->{'uri'},
+            [ 'X-WSSE' => generate( $username, $secret ) ],
+            $reportid->content
+        );
+
+        if ( $report->content =~ /"error":"report_not_ready"/ )
+        {
+            sleep $properties->{'sleep'};
+            next;
+        }
+
+        $base->child( $properties->{'store'} )->absolute->spew_utf8( $report->content );
+        $wait = 0;
+    }
+}
+
+$log->INFO( "Analytics Data Pull completed" );
+
+$prism->message( $config->{'mail'}->{'to'}, $config->{'mail'}->{'subject'}, $config->{'mail'}->{'message'} );
 
 
 # ====================
