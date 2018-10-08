@@ -76,7 +76,7 @@ while ( my $resource = $prism->next() )
 my $t1 = Benchmark->new;
 
 my $td = timediff($t1, $t0);
-say "the code took:",timestr($td);
+say "   [Benchmark] The init took took:",( timestr($td) );
 
 # ====================
 # = HELPER FUNCTIONS =

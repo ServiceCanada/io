@@ -44,7 +44,7 @@ properties.
 sub message {
     my ( $self, $to, $subject, $body ) = @_;
 
-    if ( ( !exists $self->{'host'} or $self->{'host'} eq 'localhost' )
+    if ( ( !exists $self->{'host'} or $self->{'host'} ne 'debug' )
         and $self->{'from'} )
     {
 

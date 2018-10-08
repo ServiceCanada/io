@@ -1,32 +1,30 @@
 package Prism;
 
+use v5.16;
+
 use YAML::Tiny;
 use Path::Tiny qw/path/;
 use Log::Tiny;
 use File::Spec;
+
 use Prism::HttpClient;
+use Data::Dmp;
 
 use Carp;
 
-use constant EOL => "\n";
+use constant {
+    INDEX => 0,
+    TOTAL => 1,
+};
 
 =head1 NAME
 
 Prism - A YAML driven console based data worker
 
-=head1 VERSION
-
-Version 1.0
-
 =cut
 
-$VERSION = '1.0';
-$errstr  = '';
-
-$iterator = 0;
-$catalog = 0;
-$basedir = path($0)->parent->absolute;
-$httpclient = undef;
+our ($VERSION, $ERROR, $ITERATOR, $CATALOG, $MAIL, $HTTP, $BASEDIR) = ( 
+        '1.0', '', [0,0], [], { host => 'debug' }, undef, path($0)->absolute->parent );
 
 
 =head1 SYNOPSIS
@@ -66,9 +64,24 @@ sub new {
     
     if ( exists $props->{'catalog'} )
     {
-       $catalog = scalar( @{ $props->{'catalog'} } ); 
+       $CATALOG = $props->{'catalog'};
+       $ITERATOR->[TOTAL] = scalar $CATALOG;
     }
-      
+    
+    if ( exists $props->{'mail'} )
+    {
+       $MAIL = { %{$MAIL}, %{ $props->{'mail'} } } ;        
+    }
+     
+    if ( exists $props->{'http'} )
+    {
+       my %args = map { $_ => $props->{ 'http' }->{ $_ } } ( 'agent', 'sleep', 'timeout' ) ;
+       
+       delete @args{ grep { not defined $args{$_} } keys %args }; # lets remove undefinded keys;
+       
+       $HTTP = Prism::HttpClient->new( %args );        
+    }
+         
     return bless $props, $class;
 }
 
@@ -79,8 +92,8 @@ error that Prism encountered in creation or invocation.
 
 =cut
 
-sub errstr { $errstr; }
-sub _error { $errstr = shift; undef; }
+sub errstr { $ERROR; }
+sub _error { $ERROR = shift; undef; }
 
 =head2 diagnostic
 
@@ -92,13 +105,11 @@ you have everything its needs
 sub diagnostic {
     my $self = shift;
 
-    return join( EOL,
+    return join( "\n",
         "Basedir: " . $self->base(),
-        "Mail: " . ( $self->{'mail'} ) ? $self->_inspect('mail') : " n/a ",
-        "Catalog: " . ( $self->{'catalog'} )
-            ? scalar @{ $self->{'catalog'} } . " items available"
-            : " 0 items ",
-        "HttpClient: " . ( $self->{'http'} ) ? $self->_inspect('http')
+        "Mail: " . $MAIL,
+        "Catalog: " . $ITERATOR->[TOTAL].' items availalbe',
+        "HttpClient: " . ( $HTTP ) ? $HTTP->profile()
             : " n/a "
     );
 }
@@ -109,8 +120,8 @@ sub _inspect {
 
     my $output = $section . " // ";
 
-    $output .= " $_ -> " . $self->{$section}->{$_} .','
-      for keys %{ $self->{$section} };
+    $output .= " $_ -> " . $section->{$_} .','
+      for keys %{ $section };
 
     return $output;
 }
@@ -128,9 +139,9 @@ sub pluck { shift->{shift} }
 This is a getter to return the value in a config. **Dot Notation Friendly**
 
 
-    my $dbpath = $prism->get('database.path'); # 'database/path'
+    my $dbpath = $prism->get('database.path'); # '..config value $config->{'database'}->{'path'}..'
     
-    my $dsn = $prism->get('database.path', 'dbi:SQLite:dbname='); # '   database/path'
+    my $dsn = $prism->get('database.path', 'dbi:SQLite:dbname='); # 'dbi:SQLite:dbname=..config value $config->{'database'}->{'path'}..'
     
 
 =cut
@@ -157,9 +168,9 @@ sub closest {
         
         my ( $self, $needle, $default ) = @_;
     
-        return $basedir unless ( $needle ); # just return self if no search if performed
+        return $BASEDIR unless ( $needle ); # just return self if no search if performed
     
-        my $path = $basedir;
+        my $path = $BASEDIR;
 
         while ( ! $path->is_rootdir ) {
         
@@ -185,10 +196,10 @@ sub base {
     
     if ( not defined $path )
     {
-        return $basedir->stringify;
+        return $BASEDIR->stringify;
     }
     
-    $path = $basedir->child( $path )->absolute;
+    $path = $BASEDIR->child( $path )->absolute;
     
     return  ( $stringify ) ? $path->stringify : $path;
 }
@@ -240,14 +251,16 @@ sub next
 {
     my ( $self ) = @_;
     
-    my $idx = $iterator++;
+    my $idx = $ITERATOR->[INDEX]++;
     
-    if ( $idx < $catalog )
+    if ( $idx < $ITERATOR->[TOTAL] )
     {
-        return $self->{'catalog'}->[ $idx ]; 
+        return $CATALOG->[ $idx ]; 
     }
     
-    $iterator = 0;    
+    $ITERATOR->[INDEX] = 0;
+    
+    return undef;   
 }
 
 =head2 next
@@ -260,12 +273,7 @@ sub fetch
 {
     my ( $self, $url, @args ) = @_;
     
-    if ( ! defined $httpclient )
-    {
-        $httpclient = Prism::HttpClient->new( @args );
-    }
-    
-   return $httpclient->get( $url );
+   return $HTTP->get( $url );
        
 }
 
@@ -273,12 +281,7 @@ sub download
 {
     my ( $self, $url, $saveas, @args ) = @_;
     
-    if ( ! defined $httpclient )
-    {
-        $httpclient = Prism::HttpClient->new( @args );
-    }
-    
-   return $httpclient->download( $url, $saveas );
+   return $HTTP->download( $url, $saveas );
        
 }
 
