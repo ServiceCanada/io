@@ -11,7 +11,6 @@ use Path::Tiny qw/path/;
 use SQL::Abstract;
 use DBI;
 # enable hires wallclock timing if possible
-use Benchmark ':hireswallclock';
 
 use Data::Dmp qw/dd dmp/;
 
@@ -19,8 +18,6 @@ use Data::Dmp qw/dd dmp/;
 # = PREPROCESSING =
 # =================
 my $prism = Prism->new( 'index.yml' );
-
-my $t0 = Benchmark->new;
 
 my $dbh = DBI->connect(
         'dbi:SQLite:dbname='.$prism->closest( 'public' )->sibling( $prism->get('database.path') )->stringify,
@@ -42,41 +39,40 @@ while ( my $resource = $prism->next() )
 {
     my ( $uri, $saveas, $lang ) =  ( delete $resource->{'uri'}, delete $resource->{'source'}, $resource->{'lang'} );
     
-    my $json = decode_json( validate( $prism->download( $uri, $saveas )->slurp ) );
+    my $resource = $prism->download( $uri, $saveas );
+    
+    next unless $resource;
+    
+    my $json = decode_json( validate( $resource->slurp ) );
     
     foreach my $record ( @{ $json } )
     {
       my ( $department, $minister, $type  ) = map { consume( $_, $lang, delete $record->{ $_ } )  } ( 'department', 'minister', 'type' );
-     
+
       my $record = $prism->map( $record, $resource );
-      
+
       $queries->{'article'}->execute(  map { $record->{$_} } ('id', 'url', 'released', 'title', 'teaser', 'lang' ) );
-      
+
       for ( @{ $department })
       {
           $queries->{'pivot_department'}->execute( $record->{'id'}, $_ ) unless has( 'department', $record->{'id'}, $_ );
       }
-      
-      for ( @{ $minister }) 
+
+      for ( @{ $minister })
       {
           $queries->{'pivot_minister'}->execute( $record->{'id'}, $_ ) unless has( 'minister', $record->{'id'}, $_ );
       }
-    
-      for ( @{ $type }) 
+
+      for ( @{ $type })
       {
 
            $queries->{'pivot_type'}->execute( $record->{'id'}, $_ ) unless ( has( 'type', $record->{'id'}, $_ ) );
       }
-      
+
       say " [indexed] ".$record->{'url'};
-    
+
     }
 }
-
-my $t1 = Benchmark->new;
-
-my $td = timediff($t1, $t0);
-say "   [Benchmark] The init took took:",( timestr($td) );
 
 # ====================
 # = HELPER FUNCTIONS =

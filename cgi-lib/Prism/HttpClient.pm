@@ -35,8 +35,10 @@ sub download
     my ($self, $url, $saveas ) = @_;
     my $file = path( $0 )->sibling( $saveas ) ;
     my $res = $self->[0]->mirror( $url , $file->stringify );
-    if ( $res->{success} ) {
-        print "$url is up to date\n";
+
+    if ( $res->{status} == 304 ) {
+        print "$url has not been modified\n";
+        return;
     }
     
     return $file;
@@ -46,5 +48,6 @@ sub profile
 {
     return  dmp shift->[1];
 }
+
 
 1;
