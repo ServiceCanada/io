@@ -2,7 +2,8 @@ package Prism::Mapper;
 
 use Mustache::Simple;
 use Time::Piece;
-use Digest::SHA qw/sha512_hex/;
+use Digest::SHA qw/sha256_hex/;
+use Data::Dmp;
 
 use constant {
     EOL => "\n",
@@ -63,6 +64,7 @@ sub transform {
     foreach $idx (keys %{ $map } )
     {
         $map->{$idx} = $self->[STACHE]->render( $map->{$idx}, $context );
+    
     } 
     
    return $map;
@@ -74,9 +76,15 @@ sub _pluck
     my $self = shift;
     
     return (
-        '-sha512' => sub { return sha512_hex( $self->[STACHE]->render( shift ) ) },
-        '-epoch' => sub { return Time::Piece->strptime( $self->[STACHE]->render( shift ), '%Y%m%d' )->epoch }
-    )
+        '-sha256' => sub { return sha256_hex( $self->[STACHE]->render( shift ) ) },
+        '-epoch' => sub { return Time::Piece->strptime( $self->[STACHE]->render( shift ), '%Y%m%d' )->epoch },
+        '-array' => sub { 
+            my $reference = shift;
+            dd  $self->[STACHE]->render( $_[0] );
+            if (ref $_[0] ne 'ARRAY' or ref $_[0] ne 'HASH' ) { return [ $self->[STACHE]->render( $_[0] ) ] };
+            if (ref $_[0] eq 'HASH' ) { return shift }
+        }
+    );
 }
 
 

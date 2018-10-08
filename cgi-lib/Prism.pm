@@ -3,6 +3,9 @@ package Prism;
 use YAML::Tiny;
 use Path::Tiny qw/path/;
 use Log::Tiny;
+use File::Spec;
+use Prism::HttpClient;
+
 use Carp;
 
 use constant EOL => "\n";
@@ -22,6 +25,9 @@ $errstr  = '';
 
 $iterator = 0;
 $catalog = 0;
+$basedir = path($0)->parent->absolute;
+$httpclient = undef;
+
 
 =head1 SYNOPSIS
 
@@ -52,20 +58,18 @@ config file.
 sub new {
     my ( $class, $filename ) = @_;
 
-    my $base = path($0)->parent;
-
     return _error('No valid configfile provided')
-      if ( !$base->child($filename)->exists );
+      if ( !$class->base( $filename )->exists );
 
     my $props =
-      YAML::Tiny->read( $base->child($filename)->absolute->stringify )->[0];
+      YAML::Tiny->read( $class->base($filename, 1) )->[0];
     
     if ( exists $props->{'catalog'} )
     {
        $catalog = scalar( @{ $props->{'catalog'} } ); 
     }
       
-    return bless { %$props, _basedir => $base }, $class;
+    return bless $props, $class;
 }
 
 =head2 errstr
@@ -89,7 +93,7 @@ sub diagnostic {
     my $self = shift;
 
     return join( EOL,
-        "Basedir: " . $self->{'_basedir'}->absolute->stringify,
+        "Basedir: " . $self->base(),
         "Mail: " . ( $self->{'mail'} ) ? $self->_inspect('mail') : " n/a ",
         "Catalog: " . ( $self->{'catalog'} )
             ? scalar @{ $self->{'catalog'} } . " items available"
@@ -98,7 +102,7 @@ sub diagnostic {
             : " n/a "
     );
 }
-sub _get { shift->{shift} }
+
 
 sub _inspect {
     my ( $self, $section ) = (@_);
@@ -110,6 +114,85 @@ sub _inspect {
 
     return $output;
 }
+
+=head2 pluck
+
+This get internal config structure for a passed value * only one level
+
+=cut
+
+sub pluck { shift->{shift} }
+
+=head2 get
+
+This is a getter to return the value in a config. **Dot Notation Friendly**
+
+
+    my $dbpath = $prism->get('database.path'); # 'database/path'
+    
+    my $dsn = $prism->get('database.path', 'dbi:SQLite:dbname='); # '   database/path'
+    
+
+=cut
+
+sub get {
+    
+    require Mustache::Simple;
+    
+    my ($self, $notation, $prefix ) = @_;
+    
+    my $value = Mustache::Simple->new->render( '{{ '.$notation.' }}', $self );
+    
+    return  ($prefix) ? $prefix.$value : $value;
+}
+
+=head2 closest
+
+This is a helper function to return the closest named directory from the basedir.
+
+
+=cut
+
+sub closest {
+        
+        my ( $self, $needle, $default ) = @_;
+    
+        return $basedir unless ( $needle ); # just return self if no search if performed
+    
+        my $path = $basedir;
+
+        while ( ! $path->is_rootdir ) {
+        
+            return $path if ( $path->basename eq $needle  );
+        
+            $path = $path->parent;
+        }
+    
+        return ( $default ) ? Path::Tiny::path( $default )->absolute : undef;
+
+}
+
+=head2 base
+
+This returns the absolute path from the base of a string.
+
+
+=cut
+
+sub base {
+    
+    my ($self, $path, $stringify ) = @_;
+    
+    if ( not defined $path )
+    {
+        return $basedir->stringify;
+    }
+    
+    $path = $basedir->child( $path )->absolute;
+    
+    return  ( $stringify ) ? $path->stringify : $path;
+}
+
 
 =head2 email
 
@@ -165,6 +248,38 @@ sub next
     }
     
     $iterator = 0;    
+}
+
+=head2 next
+
+A small iterator for the catalog
+
+=cut
+
+sub fetch
+{
+    my ( $self, $url, @args ) = @_;
+    
+    if ( ! defined $httpclient )
+    {
+        $httpclient = Prism::HttpClient->new( @args );
+    }
+    
+   return $httpclient->get( $url );
+       
+}
+
+sub download
+{
+    my ( $self, $url, $saveas, @args ) = @_;
+    
+    if ( ! defined $httpclient )
+    {
+        $httpclient = Prism::HttpClient->new( @args );
+    }
+    
+   return $httpclient->download( $url, $saveas );
+       
 }
 
 1;
