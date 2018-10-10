@@ -1,176 +1,150 @@
 package Prism;
 
-use v5.16;
-
+use common::sense;
+use Path::Tiny qw(path);
 use YAML::Tiny;
-use Path::Tiny qw/path/;
-use Log::Tiny;
-use File::Spec;
 
 use Prism::HttpClient;
-use Data::Dmp;
+use Prism::Mail;
+use Prism::Mapper;
 
-use Carp;
-
-use constant {
-    INDEX => 0,
-    TOTAL => 1,
+use Class::Tiny qw(http config file mail catalog basedir mapper), {
+    index => 0,
+    total => 0 
 };
+
+
+
+#################### subroutine header begin ####################
+
+=head2 sample_function
+
+ Usage     : How to use this function/method
+ Purpose   : What it does
+ Returns   : What it returns
+ Argument  : What it wants to know
+ Throws    : Exceptions and other anomolies
+ Comment   : This is a sample subroutine header.
+           : It is polite to include more pod and fewer comments.
+
+See Also   :
+
+=cut
+
+#################### subroutine header end ####################
+
+
+sub BUILD
+{
+    my ($self, $args) = @_;
+        
+    # set the basedir
+    $self->basedir( path($0)->absolute->parent );
+    
+    # set the config
+    $self->config( YAML::Tiny->read( $self->basedir->child( $self->file )->stringify )->[0] );
+    
+    if ( $self->config->{'catalog'} )
+    {
+        $self->catalog( $self->config->{'catalog'} );
+        $self->total( scalar @{ $self->config->{'catalog'} } );
+        
+        # The will need to init a crawler
+        require Prism::HttpClient;
+        
+        $self->http( Prism::HttpClient->new ( basedir => $self->basedir, %{ $self->config->{'http'} } ) );
+    }
+    
+    # Mail
+    $self->mail( 
+        Prism::Mail->new ( 
+            basedir => $self->basedir,
+            host => 'local',
+            %{ $self->config->{'mail'} }
+        )
+    );
+    
+    # Mail
+    $self->mapper( 
+        Prism::Mapper->new ( 
+            basedir => $self->basedir,
+            %{ $self->config->{'http'}->{'map'} }
+        )
+    );
+
+    
+    return $self;
+}
+
+
+#################### main pod documentation begin ###################
+## Below is the stub of documentation for your module.
+## You better edit it!
+
 
 =head1 NAME
 
-Prism - A YAML driven console based data worker
-
-=cut
-
-our ($VERSION, $ERROR, $ITERATOR, $CATALOG, $MAIL, $HTTP, $BASEDIR) = ( 
-        '1.0', '', [0,0], [], { host => 'debug' }, undef, path($0)->absolute->parent );
-
+Prism - A simplistic YAML based IO system
 
 =head1 SYNOPSIS
 
-This module aims to be a flexiable YAML driven web worker 
-to help consume and deliver API based services for static or incompatible datasets.
+  use Prism;
+  blah blah blah
 
-Its use is very straight forward:
 
-    use Prism;
+=head1 DESCRIPTION
 
-    my $prism = Prism->new( 'config.yml' ) or 
-      die 'Could not load! (' . Prism->errstr . ')';
-    
-    # lets run a diagnostic (if we want to);
-    say $prism->diagnostic();
+Stub documentation for this module was created by ExtUtils::ModuleMaker.
+It looks like the author of the extension was negligent enough
+to leave the stub unedited.
 
-    $prism->email( 'example@example.org', 'this is a test email', 'this the body of the email' );
+Blah blah blah.
 
-=head1 FUNCTIONS
 
-=head2 new
+=head1 USAGE
 
-Create a new Prism object.  You must define pass path to the 
-config file.
 
-=cut
 
-sub new {
-    my ( $class, $filename ) = @_;
+=head1 BUGS
 
-    return _error('No valid configfile provided')
-      if ( !$class->base( $filename )->exists );
 
-    my $props =
-      YAML::Tiny->read( $class->base($filename, 1) )->[0];
-    
-    if ( exists $props->{'catalog'} )
-    {
-       $CATALOG = $props->{'catalog'};
-       $ITERATOR->[TOTAL] = scalar $CATALOG;
-    }
-    
-    if ( exists $props->{'mail'} )
-    {
-       $MAIL = { %{$MAIL}, %{ $props->{'mail'} } } ;        
-    }
-     
-    if ( exists $props->{'http'} )
-    {
-       my %args = map { $_ => $props->{ 'http' }->{ $_ } } ( 'agent', 'sleep', 'timeout' ) ;
-       
-       delete @args{ grep { not defined $args{$_} } keys %args }; # lets remove undefinded keys;
-       
-       $HTTP = Prism::HttpClient->new( %args );        
-    }
-         
-    return bless $props, $class;
-}
 
-=head2 errstr
+=head1 SUPPORT
 
-Called as a class method, C< Prism->errstr > reveals the 
-error that Prism encountered in creation or invocation.
+
+
+=head1 AUTHOR
+
+    Mario Bonito
+    Beelabs Canada
+    mario@beelabs.ca
+    https://beelabs.ca
+
+=head1 COPYRIGHT
+
+This program is free software licensed under the...
+
+	The MIT License
+
+The full text of the license can be found in the
+LICENSE file included with this module.
+
+
+=head1 SEE ALSO
+
+perl(1).
 
 =cut
 
-sub errstr { $ERROR; }
-sub _error { $ERROR = shift; undef; }
+#################### main pod documentation end ###################
 
-=head2 diagnostic
-
-This method outputs a small self-check from Prism to ensure
-you have everything its needs
-
-=cut
-
-sub diagnostic {
-    my $self = shift;
-
-    return join( "\n",
-        "Basedir: " . $self->base(),
-        "Mail: " . $MAIL,
-        "Catalog: " . $ITERATOR->[TOTAL].' items availalbe',
-        "HttpClient: " . ( $HTTP ) ? $HTTP->profile()
-            : " n/a "
-    );
-}
-
-
-sub _inspect {
-    my ( $self, $section ) = (@_);
-
-    my $output = $section . " // ";
-
-    $output .= " $_ -> " . $section->{$_} .','
-      for keys %{ $section };
-
-    return $output;
-}
-
-=head2 pluck
-
-This get internal config structure for a passed value * only one level
-
-=cut
-
-sub pluck { shift->{shift} }
-
-=head2 get
-
-This is a getter to return the value in a config. **Dot Notation Friendly**
-
-
-    my $dbpath = $prism->get('database.path'); # '..config value $config->{'database'}->{'path'}..'
-    
-    my $dsn = $prism->get('database.path', 'dbi:SQLite:dbname='); # 'dbi:SQLite:dbname=..config value $config->{'database'}->{'path'}..'
-    
-
-=cut
-
-sub get {
-    
-    require Mustache::Simple;
-    
-    my ($self, $notation, $prefix ) = @_;
-    
-    my $value = Mustache::Simple->new->render( '{{ '.$notation.' }}', $self );
-    
-    return  ($prefix) ? $prefix.$value : $value;
-}
-
-=head2 closest
-
-This is a helper function to return the closest named directory from the basedir.
-
-
-=cut
-
-sub closest {
+sub parent {
         
         my ( $self, $needle, $default ) = @_;
     
-        return $BASEDIR unless ( $needle ); # just return self if no search if performed
+        return $self->basedir unless ( $needle ); # just return self if no search if performed
     
-        my $path = $BASEDIR;
+        my $path = $self->basedir;
 
         while ( ! $path->is_rootdir ) {
         
@@ -179,110 +153,51 @@ sub closest {
             $path = $path->parent;
         }
     
-        return ( $default ) ? Path::Tiny::path( $default )->absolute : undef;
-
+        return ( $default ) ? path( $default )->absolute : undef;
 }
 
-=head2 base
-
-This returns the absolute path from the base of a string.
-
-
-=cut
-
-sub base {
-    
-    my ($self, $path, $stringify ) = @_;
-    
-    if ( not defined $path )
-    {
-        return $BASEDIR->stringify;
-    }
-    
-    $path = $BASEDIR->child( $path )->absolute;
-    
-    return  ( $stringify ) ? $path->stringify : $path;
-}
-
-
-=head2 email
-
-This sends a email message using sendmail. If a hostname is set it will default to
-a console.log output message
-
-=cut
-
-sub email {
-
-    require Prism::Message;
-
-    return Prism::Message->new( shift->{'mail'} )->message(@_);
-}
-
-=head2 map
-
-This transforms an object with set mapping in the YAML file.
-
-=cut
-
-sub map
+sub diag
 {
-    my ( $self, $context, $overrides ) = @_;
-    
-    require Prism::Mapper;
-    
-    my $props = $self->{'http'}->{'map'};
-    
-    if ( $overrides )
-    {
-        $props = { %{ $self->{'http'}->{'map'} }, %{ $overrides } };
-    }
-    
-    return  Prism::Mapper->new(  $props  )->transform( $context );
+    require Data::Dmp;
+    return Data::Dmp::dmp shift;
 }
 
-=head2 next
-
-A small iterator for the catalog
-
-=cut
-
-sub next
+sub transform
 {
-    my ( $self ) = @_;
-    
-    my $idx = $ITERATOR->[INDEX]++;
-    
-    if ( $idx < $ITERATOR->[TOTAL] )
-    {
-        return $CATALOG->[ $idx ]; 
-    }
-    
-    $ITERATOR->[INDEX] = 0;
-    
-    return undef;   
+     return shift->mapper->transform( @_ );
 }
 
-=head2 next
-
-A small iterator for the catalog
-
-=cut
-
-sub fetch
+sub message
 {
-    my ( $self, $url, @args ) = @_;
-    
-   return $HTTP->get( $url );
-       
+     return shift->mail->message( @_ );
 }
 
 sub download
 {
-    my ( $self, $url, $saveas, @args ) = @_;
+    return shift->http->download( @_ );
+}
+
+sub get
+{
+    return shift->http->get( @_ );
+}
+
+sub next
+{
+    my ( $self ) = shift;
     
-   return $HTTP->download( $url, $saveas );
-       
+    my $idx = $self->index;
+    
+    if ( $idx < $self->total )
+    {
+        $self->index( $idx + 1 );
+        return $self->catalog->[ $idx ]; 
+    }
+    
+    $self->index( 0 );
+    return undef;   
 }
 
 1;
+# The preceding line will help the module return a true value
+

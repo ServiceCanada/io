@@ -1,92 +1,63 @@
 package Prism::Mapper;
+use common::sense;
 
 use Mustache::Simple;
-use Time::Piece;
 use Digest::SHA qw/sha256_hex/;
+use HTML::Strip;
+use Date::Manip::Date;
+
 use Data::Dmp;
 
-use constant {
-    EOL => "\n",
-    STACHE => 0,
-    MAP => 1
+use Class::Tiny qw(basedir map),{
+    stache => Mustache::Simple->new()
 };
 
-=head1 NAME
+sub BUILD
+{
+    my ($self, $args) = @_;
 
-Prism::Message - A plugin to Prism that allowes prism to send mail
-
-=head1 VERSION
-
-Version 1.0
-
-=cut
-
-$VERSION = '1.0';
-$errstr  = '';
-
-
-=head1 SYNOPSIS
-
-This module aims is an plugin for Prism and shoud not be interface directly.
-
-=head1 FUNCTIONS
-
-=head2 new
-
-Create a new Prism::Message object, with the existing C< Prism > mail
-properties.
-
-=cut
-
-sub new {
-    my ( $class, $args ) = @_;
+    $self->basedir( delete $args->{'basedir'} );
     
-    return bless [
-        Mustache::Simple->new(),
-        $args
-    ], $class;
+    $self->map( $args );
+    
+    return $self;
 }
 
-=head2 transform
 
-Sends a message using either C< Mail::Sendmail > or *STDOUT, with the existing C< Prism > mail
-properties.
-
-=cut
-
-sub transform {
-    my ( $self, $context ) = @_;
+sub transform 
+{
+    my ( $self, $data, $overrides ) = @_;
     
-    $context = { $self->_pluck(), %$context };
+    # lets get rid of some other keys local file io keys
+    delete $overrides->{ $_ } for ( 'source', 'uri' );
     
-    my $map = $self->[MAP];
+    my $map = { %{ $self->map() }, %{ $overrides } };
     
-    foreach $idx (keys %{ $map } )
+    my $dataset = { $self->_pluck(), %{ $data } };
+        
+    my $transform = {};
+    
+    foreach my $idx (keys %{ $map } )
     {
-        $map->{$idx} = $self->[STACHE]->render( $map->{$idx}, $context );
-    
+        $transform->{$idx} = $self->stache->render( $map->{$idx}, $dataset );
     } 
     
-   return $map;
-    
+   return $transform;
 }
+
 
 sub _pluck
 {
-    my $self = shift;
+    my ( $self ) = shift ;
     
     return (
-        '-sha256' => sub { return sha256_hex( $self->[STACHE]->render( shift ) ) },
-        '-epoch' => sub { return Time::Piece->strptime( $self->[STACHE]->render( shift ), '%Y%m%d' )->epoch },
-        '-array' => sub { 
-            my $reference = shift;
-            dd  $self->[STACHE]->render( $_[0] );
-            if (ref $_[0] ne 'ARRAY' or ref $_[0] ne 'HASH' ) { return [ $self->[STACHE]->render( $_[0] ) ] };
-            if (ref $_[0] eq 'HASH' ) { return shift }
-        }
-    );
+        '-sha256' => sub { return sha256_hex( $self->stache->render( shift ) ) },
+        '-epoch' => sub { my $dt = Date::Manip::Date->new; $dt->parse( $self->stache->render( shift ) ); return $dt->secs_since_1970_GMT() },
+        '-striptags' => sub { return HTML::Strip->new->parse( $self->stache->render( shift ) ) },
+        '-getlink' => sub { my ( $text, $url ) = ( $self->stache->render( shift ), '') ; while ( $text =~ m{(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))}go ) { $url = $1 }; return $url }
+        );
+ 
 }
-
 
 
 1;

@@ -17,11 +17,11 @@ use Data::Dmp qw/dd dmp/;
 # =================
 # = PREPROCESSING =
 # =================
-my $prism = Prism->new( 'index.yml' );
+my $prism = Prism->new( file => 'index.yml' );
 
 my $dbh = DBI->connect(
-        'dbi:SQLite:dbname='.$prism->closest( 'public' )->sibling( $prism->get('database.path') )->stringify,
-        $prism->get('database.username'), $prism->get('database.password'),
+        'dbi:SQLite:dbname='.$prism->parent( 'public' )->sibling( 'db/news/database.sqlite' )->stringify,
+        '', '',
         { RaiseError => 0, AutoCommit => 1, PrintError => 0 }
     );
 
@@ -43,15 +43,15 @@ while ( my $resource = $prism->next() )
     
     next unless $resource;
     
-    my $json = decode_json( validate( $resource->slurp ) );
+    my $json = decode_json( fix( $resource->slurp ) );
     
     foreach my $record ( @{ $json } )
     {
       my ( $department, $minister, $type  ) = map { consume( $_, $lang, delete $record->{ $_ } )  } ( 'department', 'minister', 'type' );
 
-      my $record = $prism->map( $record, $resource );
+      my $record = $prism->transform( $record, $resource );
 
-      $queries->{'article'}->execute(  map { $record->{$_} } ('id', 'url', 'released', 'title', 'teaser', 'lang' ) );
+      $queries->{'article'}->execute(  map { $record->{$_} } ('id', 'url', 'pubdate', 'title', 'teaser', 'lang' ) );
 
       for ( @{ $department })
       {
@@ -106,7 +106,7 @@ sub has
 }
 
 
-sub validate
+sub fix
 {
     my $json = shift;
     # lets clean up the end of the string;

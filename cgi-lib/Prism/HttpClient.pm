@@ -1,53 +1,55 @@
 package Prism::HttpClient;
-
+use common::sense;
 use HTTP::Tiny;
-use v5.16;
-use File::Basename;
-use Path::Tiny qw/path/;
-use Data::Dmp;
+use Class::Tiny qw(http basedir);
 
-sub new {
-    my ( $class, $args ) = ( shift, { @_} );
-    my  $http = HTTP::Tiny->new( @_ );
-    return bless [ $http, $args ], $class;
+sub BUILD
+{
+    my ($self, $args) = @_;
+        
+    my %props  = (
+        timeout => ( $args->{'timeout'} ) ? delete $args->{'timeout'} : 10,
+        agent => ( $args->{'agent'} ) ? delete $args->{'agent'} : 'Prism crawler v1.0rc'
+    );
+    
+    $self->basedir( $args->{'basedir'} );
+    
+    $self->http( HTTP::Tiny->new( %props ) );
+    
+    return $self;
 }
 
-sub get
+
+sub get 
 {
-    say "   [fetch] GET $_[1]";
-    return shift->[0]->get(@_);
+    return shift->http->get( @_ );
 }
 
-sub post
+sub post 
 {
-    say "   [fetch] POST $_[1]";
-    return shift->[0]->post(@_);
+    return shift->http->post( @_ );
 }
 
 sub head
 {
-    say "   [fetch] HEAD $_[1]";
-    return shift->[0]->head(@_);
+    return shift->http->head( @_ );
 }
 
-sub download
+sub download 
 {
-    my ($self, $url, $saveas ) = @_;
-    my $file = path( $0 )->sibling( $saveas ) ;
-    my $res = $self->[0]->mirror( $url , $file->stringify );
+    
+    my ($self, $url, $save ) = @_;
+    
+    $save = ( ref($save) eq 'Path::Tiny' ) ? $save : $self->basedir->child( $save ) ;
+        
+    my $res = $self->http->mirror( $url , $save->stringify );
 
     if ( $res->{status} == 304 ) {
         print "$url has not been modified\n";
         return;
     }
     
-    return $file;
+    return $save;
 }
-
-sub profile
-{
-    return  dmp shift->[1];
-}
-
 
 1;
