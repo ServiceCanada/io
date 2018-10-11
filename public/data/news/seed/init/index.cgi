@@ -39,11 +39,11 @@ while ( my $resource = $prism->next() )
 {
     my ( $uri, $saveas, $lang ) =  ( delete $resource->{'uri'}, delete $resource->{'source'}, $resource->{'lang'} );
     
-    my $resource = $prism->download( $uri, $saveas );
+    my $datafile = $prism->download( $uri, $saveas );
     
-    next unless $resource;
+    next unless $datafile;
     
-    my $json = decode_json( fix( $resource->slurp ) );
+    my $json = decode_json( fix( $datafile->slurp ) );
     
     foreach my $record ( @{ $json } )
     {
@@ -51,7 +51,7 @@ while ( my $resource = $prism->next() )
 
       my $record = $prism->transform( $record, $resource );
 
-      $queries->{'article'}->execute(  map { $record->{$_} } ('id', 'url', 'pubdate', 'title', 'teaser', 'lang' ) );
+      $queries->{'article'}->execute(  map { $record->{$_} } ('id', 'link', 'pubdate', 'title', 'teaser', 'lang' ) );
 
       for ( @{ $department })
       {
@@ -69,7 +69,7 @@ while ( my $resource = $prism->next() )
            $queries->{'pivot_type'}->execute( $record->{'id'}, $_ ) unless ( has( 'type', $record->{'id'}, $_ ) );
       }
 
-      say " [indexed] ".$record->{'url'};
+      say " [indexed] ".$record->{'link'};
 
     }
 }
@@ -89,7 +89,7 @@ sub consume
     foreach my $key ( keys %{ $data } )
     {
     
-       $cache->{$type}->{$key} = { 'en' => '' , 'fr' => '' } if ( ! exists $cache->{$type}->{$key} );
+       $cache->{$type}->{$key} = { 'en' => '' , 'fr' => '' } unless ( $cache->{$type}->{$key} );
        $cache->{$type}->{$key}->{$lang} = $data->{$key};
        push( @entries, [ $key, $cache->{$type}->{$key}->{'en'}, $cache->{$type}->{$key}->{'fr'} ] );
     }
