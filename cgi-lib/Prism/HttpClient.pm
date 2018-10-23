@@ -1,6 +1,7 @@
 package Prism::HttpClient;
 use common::sense;
 use HTTP::Tiny;
+use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
 use Class::Tiny qw(http basedir);
 
 sub BUILD
@@ -9,9 +10,18 @@ sub BUILD
         
     my %props  = (
         timeout => ( $args->{'timeout'} ) ? delete $args->{'timeout'} : 10,
-        agent => ( $args->{'agent'} ) ? delete $args->{'agent'} : 'Prism crawler v1.0rc'
+        agent => ( $args->{'agent'} ) ? delete $args->{'agent'} : 'Prism crawler v1.0rc',
+        default_headers => { qw'Accept-Encoding gzip' }
     );
     
+    if ( $args->{'default_headers'}  )
+    {
+        $props{'default_headers'} = {
+            %{ $props{'default_headers'} },
+            %{ delete $args->{'default_headers'} }
+        };
+    }
+       
     $self->basedir( $args->{'basedir'} );
     
     $self->http( HTTP::Tiny->new( %props ) );
@@ -22,7 +32,23 @@ sub BUILD
 
 sub get 
 {
-    return shift->http->get( @_ );
+    my ( $self, $url ) = @_;
+    
+    my $response = $self->http->get( $url );
+    
+    return unless ( $response->{success} && length $response->{content} );
+    
+    if ( $response->{headers}{'content-encoding'} eq 'gzip' )
+    {
+        my ( $content, $decompressed, $scalar, $GunzipError) = ( $response->{ content } );
+
+        gunzip \$content => \$decompressed, MultiStream => 1, Append => 1, TrailingData => \$scalar 
+            or die "gunzip failed: $GunzipError\n"; 
+
+        $response->{ content } = $decompressed;
+    }
+        
+    return $response;
 }
 
 sub post 
