@@ -3,6 +3,7 @@ use common::sense;
 
 use Mustache::Simple;
 use Digest::SHA qw/sha256_hex/;
+use Digest::MD5 qw/md5_hex/;
 use HTML::Strip;
 use Date::Manip::Date;
 
@@ -27,6 +28,7 @@ sub BUILD
 sub transform 
 {
     my ( $self, $data, $overrides ) = @_;
+    
     
     # lets get rid of some other keys local file io keys
     delete $overrides->{ $_ } for ( 'source', 'uri' );

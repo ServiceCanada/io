@@ -1,5 +1,6 @@
 package Prism::HttpClient;
 use common::sense;
+
 use HTTP::Tiny;
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
 use Class::Tiny qw(http basedir);
@@ -42,7 +43,7 @@ sub get
     {
         my ( $content, $decompressed, $scalar, $GunzipError) = ( $response->{ content } );
 
-        gunzip \$content => \$decompressed, MultiStream => 1, Append => 1, TrailingData => \$scalar 
+        gunzip \$content => \$decompressed,
             or die "gunzip failed: $GunzipError\n"; 
 
         $response->{ content } = $decompressed;
