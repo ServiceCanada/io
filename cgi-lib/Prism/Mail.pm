@@ -1,8 +1,9 @@
 package Prism::Mail;
 
 use common::sense;
-use Class::Tiny qw(mail basedir);
+use Class::Tiny qw(mail basedir stache);
 use Mail::Sendmail;
+use Mustache::Simple;
 use Data::Dmp;
 
 sub BUILD
@@ -13,20 +14,35 @@ sub BUILD
         
     $self->mail( $args );
     
+    $self->stache( Mustache::Simple->new() );
+    
     return $self;
 }
 
 sub message
 {
     
-    my ( $self, $to, $subject, $body ) = @_;
+    my ( $self, $args ) = ( shift, { @_ } );
     
-    if ( $self->mail->{'host'} ne 'local' )
+    my $data = ( $args->{'data'} ) ? $args->{'data'} : { time => time };
+    
+    my ( $to, $from, $subject, $body ) = (
+      ( $args->{'to'} ) ? $args->{'to'} : $self->mail->{'to'},
+      ( $args->{'from'} ) ? $args->{'from'} : $self->mail->{'from'},
+      ( $args->{'subject'} )
+          ? $self->stache->render( $args->{'subject'}, $data )
+          : $self->stache->render( $self->mail->{'subject'}, $data ),
+      ( $args->{'body'} )
+          ? $self->stache->render( $args->{'body'}, $data )
+          : $self->stache->render( $self->mail->{'body'}, $data )
+    );
+    
+    if ( $self->mail->{'host'} ne 'debug' )
     {
             
         return Mail::Sendmail::sendmail(
              To   => $to,
-             From => $self->mail->{'from'},
+             From => $from,
              Subject => $subject,
              Message => $body
         
@@ -37,7 +53,7 @@ sub message
     say " [Debug mode] activated since not on server";
     say " [Email Message] .. send";
     say " To: $to";
-    say " From: ".$self->mail->{'from'};
+    say " From: ".$from;
     say " Subject: $subject";
     say "\n";
     say "$body";

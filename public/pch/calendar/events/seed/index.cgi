@@ -24,11 +24,14 @@ my $prism = Prism->new( file => 'index.yml' );
 
 my $coder = JSON::XS->new->utf8;
 
+my $cind = 0;
+
 while( my $resource = $prism->next() )
 {
    my $response = $prism->get( $resource->{'uri'} );
    my $source =  $datadir->child( $resource->{'source'} )->touchpath;
    
+
    if ( $response->{success} )
    {
         my $json = $coder->decode( $response->{content});
@@ -43,6 +46,7 @@ while( my $resource = $prism->next() )
             #lets create this dataset
             $source->sibling( $dataset->{'id'}.'.json' )->spew_raw( $coder->encode( $dataset )  );
             
+            $cind++;
         }
                    
         #lets create this dataset
@@ -50,3 +54,5 @@ while( my $resource = $prism->next() )
     }
   
 }
+
+#$prism->message( data => { total => $cind/2 } );
