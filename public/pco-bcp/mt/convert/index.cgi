@@ -1,4 +1,4 @@
-#!/Users/masterbee/perl5/perlbrew/perls/perl-5.16.3/bin/perl
+#!/usr/bin/env perl
 use common::sense;
 
 use Env;
@@ -13,9 +13,9 @@ use Text::CSV_XS;
 use Mustache::Simple;
 
 use DBI;
-use CGI;
+use CGI qw(-utf8);
 
-use Text::Markdown;
+use Text::Markdown 'markdown';
 use Data::Dumper;
 
 # =================
@@ -28,22 +28,23 @@ my $stache = Mustache::Simple->new();
 
 my $dbh = DBI->connect(
     "dbi:SQLite:dbname=".$base->child( $config->{'database'}->{'path'} )
-    ,"",""
+    ,"","",{ sqlite_unicode => 1 }
 );
 
 my $cgi = CGI->new();
 
-my ( $template, $io ) = (
+my ( $template, $lang, $io ) = (
     $cgi->param('template'),
-    path( $cgi->tmpFileName( $cgi->param('input-file') ) )->openr_raw
+    $cgi->param('language'),
+    path( $cgi->tmpFileName( $cgi->param('input-file') ) )->openr
 );
 
-print $cgi->header;
+print $cgi->header("text/html;charset=UTF-8");
 
 $template = $dir->sibling('.templates')->child( $template.'.tmpl' )->realpath;
 
 
-if ( ! $template->is_file or $dir->subsumes($template) )
+if ( ! $template->is_file or $dir->subsumes( $template ) )
 {
     print "Opps not template";
     exit();
@@ -60,8 +61,23 @@ my $rendered = "";
 
 while (my $row = $csv->getline_hr($io) )
 {
+    $row->{'Anticipated'} = ( $lang eq 'en' ) ? "Result anticipated" : "Résultat obtenu";
+    $row->{'ClickForMore'} = ( $lang eq 'en' ) ? "Click to see more information" : "Cliquez pour voir plus d'informations";
+    $row->{'MoreInformation'} = ( $lang eq 'en' ) ? "More Information" : "Plus d'information";
     $row->{'Label'} = label( $row->{'Status'} );
     $row->{'MinList'} = ministers( $row->{'Ministers'} );
+    # MarkDown for Comment
+    $row->{'Comment'} = compress( markdown( normalize( $row->{'Comment'} ) ) );
+    # Other Links
+    $row->{'OtherLinks'} = otherlinks( 
+            [ $row->{'Link_1'}, $row->{'Link_Text_1'} ],
+            [ $row->{'Link_2'}, $row->{'Link_Text_2'} ],
+            [ $row->{'Link_3'}, $row->{'Link_Text_3'} ],
+            [ $row->{'Link_4'}, $row->{'Link_Text_4'} ],
+            [ $row->{'Link_5'}, $row->{'Link_Text_5'} ]
+    );
+    
+
     $rendered .= $stache->render( $mold, $row );
 }
 
@@ -76,16 +92,17 @@ print $stache->render( $dir->sibling('complete.html')->slurp_utf8, { rendered =>
 
 sub ministers 
 { 
-    my ( $ministers, $lang ) = @_; 
+    my ( $ministers ) = @_; 
     my $list = ( $lang eq 'en' ) ? '<p>Mandate letters that include this commitment:</p>' : '<p>Lettres de mandat qui incluent cet engagement :</p>'; 
-    $list .= "<ul>"; 
+    $list .= "\n<ul>\n"; 
     foreach my $minister ( split /;/, $ministers ) 
     { 
-        my $min =  $dbh->selectrow_hashref('SELECT * FROM ministers WHERE title=\''.$minister.'\' LIMIT 1');
-        $list .= "<li><a href=\"$min->{link}\">$min->{title}</a></li>"; 
+        my $min =  $dbh->selectrow_hashref('SELECT * FROM ministers WHERE title LIKE\'%'.$minister.'%\' LIMIT 1');
+        next unless $min->{title};
+        $list .= "<li><a href=\"$min->{link}\">$min->{title}</a></li>\n"; 
     } 
 
-    return $list."</ul>"; 
+    return $list."</ul>\n"; 
 } 
 
 
@@ -101,6 +118,35 @@ sub label
     return "<span class=\"label label-success guidance\">$tag</span>" if ( $tag =~ /(commitment|permanent)$/ ); 
 } 
 
+sub otherlinks 
+{ 
+    my ($list, $has, @links) = ( "<ul>\n", 0, @_ ); 
+    
+    
+    foreach my $link ( @links ) 
+    { 
+        next unless ( $link->[1] );
+        $list .= "<li><a href=\"".$link->[0]."\">".$link->[1]."</a></li>\n";
+        $has = 1;
+    } 
+    
+    return ( $has ) ? $list."</ul>\n" : undef ; 
+}
+
+sub compress {
+    my ( $text ) = @_;
+    $text =~ s/[\n\r]+/<br \/>\n/g;
+    $text =~ s/<\/p><br \/>/<\/p>/g;
+    return $text;
+}
+
+sub normalize
+{
+    my ( $text ) = @_;
+    $text =~ s/^\s+//;
+    $text =~ s/\s+$//;
+    return $text;
+}
 
 #FUNCTIONS
 sub sanitize
