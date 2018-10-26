@@ -10,16 +10,15 @@ use DBI;
 use SQL::Maker;
 use YAML::Tiny;
 use Text::CSV_XS;
-use Storable;
+use Text::StripAccents;
 
 # =================
 # = PREPROCESSING =
 # =================
 
-my ( $base, $config, $builder ) = (
+my ( $base, $config, $builder) = (
     path( substr( File::Spec->rel2abs($0), 0, rindex( File::Spec->rel2abs($0), '/public/' ) ) ),
-    YAML::Tiny->read( path($0)->sibling('index.yml')->stringify )->[0],
-    SQL::Maker->new( driver => 'SQLite' )
+    YAML::Tiny->read( path($0)->sibling('index.yml')->stringify )->[0]
 );
 
 my $dbh = DBI->connect(
@@ -27,32 +26,54 @@ my $dbh = DBI->connect(
     ,"",""
 );
 
+my $add = $dbh->prepare('INSERT INTO ministers (id, title, link) VALUES (?, ?, ?)');
+
+print "[starting] loading ministers\n";
+
 my $csv = Text::CSV_XS->new ( { binary => 1 } )  # should set binary attribute.
                 or die "Cannot use CSV: ".Text::CSV->error_diag ();
-                
-                
-my @ministers = path($0)->sibling('ministers.csv')->lines( { chomp => 1, binmode => ':raw' });
+                        
+my $io = path($0)->sibling('ministers.csv')->openr;
 
-shift(@ministers); # we do not want the headers
-                
-foreach my $minister (@ministers)
+$csv->column_names( map { sanitize( $_ ) } @{ $csv->getline($io) } );
+
+while (my $row = $csv->getline_hr($io) )
+{   
+    next unless ( $row->{'link'} =~ /[a-zA-Z]/ );
+    
+    if ( my ($id, $title) = $dbh->selectrow_array( "SELECT id , title FROM ministers WHERE id = ? LIMIT 1" , {}, generate( $row->{'title'} ) ) )
+    {
+        print "Ok we have a duplicate $title\n";
+        next;
+    }
+    # english
+    $add->execute( generate( $row->{'title'} ), $row->{'title'}, $row->{'link'} );
+    
+    if ( my ( $id, $title ) = $dbh->selectrow_array( "SELECT id , title FROM ministers WHERE id = ? LIMIT 1" , {}, generate( $row->{'titre'} ) ) )
+    {
+        print "Ok we have a duplicate $title\n";
+        next;
+    }
+    # french 
+    $add->execute( generate( $row->{'titre'} ), $row->{'titre'}, $row->{'lien'} );
+    
+}
+
+print "[complete] OK...";
+               
+#FUNCTIONS
+sub sanitize
 {
-    my $status = $csv->parse($minister);
-    my @columns = $csv->fields();
-    my $values = {
-        'title' => $columns[0],
-        'link' => $columns[1],
-    };
-    my ($stmt, @bind) = $builder->insert( 'ministers', $values );
-    my $sth = $dbh->prepare($stmt);
-    $sth->execute(@bind);
-    
-    my $values = {
-        'title' => $columns[2],
-        'link' => $columns[3],
-    };
-    ($stmt, @bind) = $builder->insert( 'ministers', $values );
-    $sth = $dbh->prepare($stmt);
-    $sth->execute(@bind);
-    
+    my ( $text ) = @_;
+    $text =~ s/\n+//g;
+    $text =~ s/\s+/_/g;
+    return lc($text);
+}
+
+sub generate
+{
+    my ( $text ) = @_;
+    $text = stripaccents($text);
+    $text =~ s/[^a-z]//gi;
+    return lc($text);
 }

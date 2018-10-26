@@ -167,6 +167,11 @@ sub transform
      return shift->mapper->transform( @_ );
 }
 
+sub morph
+{
+    return shift->mapper->stache->render(  @_ );
+}
+
 sub message
 {
      return shift->mail->message( @_ );

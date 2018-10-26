@@ -16,13 +16,15 @@ use DBI;
 use CGI qw(-utf8);
 
 use Text::Markdown 'markdown';
-use Data::Dumper;
+use Text::StripAccents;
 
 # =================
 # = PREPROCESSING =
 # =================
+
 my $dir = path($0)->realpath;
 my $base = path( substr( File::Spec->rel2abs($0), 0, rindex( File::Spec->rel2abs($0), '/public/' ) ) );
+
 my $config = YAML::Tiny->read( $dir->sibling('index.yml')->stringify )->[0];
 my $stache = Mustache::Simple->new();
 
@@ -61,6 +63,8 @@ my $rendered = "";
 
 while (my $row = $csv->getline_hr($io) )
 {
+    next unless ( $row->{'Comment'} );
+    
     $row->{'Anticipated'} = ( $lang eq 'en' ) ? "Result anticipated" : "Résultat obtenu";
     $row->{'ClickForMore'} = ( $lang eq 'en' ) ? "Click to see more information" : "Cliquez pour voir plus d'informations";
     $row->{'MoreInformation'} = ( $lang eq 'en' ) ? "More Information" : "Plus d'information";
@@ -77,7 +81,8 @@ while (my $row = $csv->getline_hr($io) )
             [ $row->{'Link_5'}, $row->{'Link_Text_5'} ]
     );
     
-
+    $row->{'Vintage'} = $config->{'datemap'}->{ $row->{'Vintage'} }->{ $lang };
+    
     $rendered .= $stache->render( $mold, $row );
 }
 
@@ -97,9 +102,8 @@ sub ministers
     $list .= "\n<ul>\n"; 
     foreach my $minister ( split /;/, $ministers ) 
     { 
-        my $min =  $dbh->selectrow_hashref('SELECT * FROM ministers WHERE title LIKE\'%'.$minister.'%\' LIMIT 1');
-        next unless $min->{title};
-        $list .= "<li><a href=\"$min->{link}\">$min->{title}</a></li>\n"; 
+        my ($link, $title) =  $dbh->selectrow_array('SELECT link, title FROM ministers WHERE id = ? LIMIT 1', {}, generate( $minister ) );
+        $list .= "<li><a href=\"$link\">$title</a></li>\n"; 
     } 
 
     return $list."</ul>\n"; 
@@ -155,4 +159,12 @@ sub sanitize
     $text =~ s/\n+//g;
     $text =~ s/\s+/_/g;
     return $text;
+}
+
+sub generate
+{
+    my ( $text ) = @_;
+    $text = stripaccents($text);
+    $text =~ s/[^a-z]//gi;
+    return lc($text);
 }

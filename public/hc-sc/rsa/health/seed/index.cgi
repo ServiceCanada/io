@@ -8,9 +8,9 @@ use cPanelUserConfig;
 use Path::Tiny qw/path/;
 use Prism;
 use DBI;
-use YAML::Tiny;
-use Text::CSV_XS;
+use JSON;
 use Storable qw/dclone/; 
+use Data::Dumper;
 
 # =================
 # = PREPROCESSING =
@@ -22,6 +22,19 @@ my $dbh = DBI->connect(
     ,"","", { sqlite_unicode => 1 }
 );
 
+my $coder = JSON->new->utf8;
+
 my $add = $dbh->prepare('INSERT INTO recalls ( id, title, abstract, date, lang, parent, category, subcategory, url ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
 
 
+while (my $resource = $prism->next() )
+{
+    my $io = $coder->decode( $prism->get( $resource->{'uri'} )->{'content'} );
+    
+    foreach my $recall (  @{ $io->{'results'} }  )
+    {
+    
+        print $prism->morph( $resource->{'source'}, $recall ), "\n";
+    }
+    
+}

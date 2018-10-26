@@ -55,4 +55,4 @@ while( my $resource = $prism->next() )
   
 }
 
-#$prism->message( data => { total => $cind/2 } );
+$prism->message( data => { total => $cind/2 } );

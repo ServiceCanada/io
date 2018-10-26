@@ -51,7 +51,7 @@ while (my $resource = $prism->next() )
         my $dataset = $prism->transform( $row, $rez );
         
         # lets check if this recall exists
-        if ( my ( $id, $sub, $title ) = $dbh->selectrow_array("SELECT id, subcategory, title  FROM recalls WHERE id=? LIMIT 1", {}, $dataset->{'id'} ) )
+        if ( my ( $id, $sub, $title ) = $dbh->selectrow_array("SELECT id, subcategory, title  FROM recalls WHERE id=? AND lang=? LIMIT 1", {}, $dataset->{'id'}, $dataset->{'lang'} ) )
         {
             unless ( $sub =~ m/\b$dataset->{'subcategory'}\b/ )
             {
