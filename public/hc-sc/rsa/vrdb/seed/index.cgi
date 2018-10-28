@@ -5,12 +5,13 @@ use File::Spec;
 use lib join( '/', substr( File::Spec->rel2abs($0), 0, rindex( File::Spec->rel2abs($0), '/public/' ) ), 'cgi-lib' );
 
 use cPanelUserConfig;
+use Storable qw/dclone/; 
 use Path::Tiny qw/path/;
+
 use Prism;
 use DBI;
 use YAML::Tiny;
 use Text::CSV_XS;
-use Storable qw/dclone/; 
 
 use Data::Dmp qw/dd/;
 
@@ -27,7 +28,7 @@ my $dbh = DBI->connect(
 my $add = $dbh->prepare('INSERT INTO recalls ( id, title, abstract, date, lang, parent, category, subcategory, url ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
 my $update = $dbh->prepare('UPDATE recalls SET title = ?, subcategory = ? WHERE id = ?');
 
-while (my $resource = $prism->next() )
+while ( my $resource = $prism->next() )
 {
     my $io = $prism->download( $resource->{'uri'}, $resource->{'source'} );
     
@@ -58,8 +59,8 @@ while (my $resource = $prism->next() )
                 # We are merging here
                 print " [merging] [$dataset->{lang}] (".$idx++." / ~ 120000) ".$dataset->{url}."\n";
                 
-                $title .= ', '.$dataset->{'subcategory'} unless $title =~ m/\b$dataset->{'subcategory'}\b/;
-                $sub .= ';'.$dataset->{'subcategory'};
+                $title .= ', ' . $dataset->{'subcategory'} unless $title =~ m/\b$dataset->{'subcategory'}\b/;
+                $sub .= ';' . $dataset->{'subcategory'};
                 $update->execute( $title, $sub, $id );
             }
             next;
@@ -70,6 +71,8 @@ while (my $resource = $prism->next() )
     }
     
 }
+
+print "[complete] OK";
 
 
 

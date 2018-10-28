@@ -68,7 +68,9 @@ sub download
     my ($self, $url, $save ) = @_;
     
     $save = ( ref($save) eq 'Path::Tiny' ) ? $save : $self->basedir->child( $save ) ;
-        
+    
+    $save->touchpath();
+    
     my $res = $self->http->mirror( $url , $save->stringify );
 
     if ( $res->{status} == 304 ) {
