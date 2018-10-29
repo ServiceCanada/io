@@ -69,10 +69,10 @@ sub download
     
     $save = ( ref($save) eq 'Path::Tiny' ) ? $save : $self->basedir->child( $save ) ;
     
-    $save->touchpath();
+    $save->parent->mkpath() unless ( $save->parent->is_dir );
     
     my $res = $self->http->mirror( $url , $save->stringify );
-
+    
     if ( $res->{status} == 304 ) {
         print "$url has not been modified\n";
         return;

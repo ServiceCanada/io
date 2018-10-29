@@ -25,8 +25,10 @@ my $dbh = DBI->connect(
     ,"","", { sqlite_unicode => 1 }
 );
 
-my $add = $dbh->prepare('INSERT INTO recalls ( id, title, abstract, date, lang, parent, category, subcategory, url ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+my $add = $dbh->prepare('INSERT INTO recalls ( id, title, abstract, date, year, lang, parent, category, subcategory, url ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+
 my $update = $dbh->prepare('UPDATE recalls SET title = ?, subcategory = ? WHERE id = ?');
+
 
 while ( my $resource = $prism->next() )
 {
@@ -36,20 +38,24 @@ while ( my $resource = $prism->next() )
     
     if ( $io == undef )
     {
-        $io = $prism->parent->child( $resource->{'source'} );
+        $io = $prism->basedir->child( $resource->{'source'} );
     }
+    
+    say "opening $io";
     
     $io = $io->openr;
     
     my $csv = Text::CSV_XS->new ( { binary => 1 } )  # should set binary attribute.
                     or die "Cannot use CSV: ".Text::CSV->error_diag ();
                     
-    $csv->column_names( map { sanitize( $_ ) } @{ $csv->getline($io) } );
+    $csv->column_names( @{ $csv->getline( $io ) } );
     
     while (my $row = $csv->getline_hr($io) )
     {
         my $rez = dclone( $resource );
         my $dataset = $prism->transform( $row, $rez );
+        
+        $dataset = normalize( $dataset );
         
         # lets check if this recall exists
         if ( my ( $id, $sub, $title ) = $dbh->selectrow_array("SELECT id, subcategory, title  FROM recalls WHERE id=? AND lang=? LIMIT 1", {}, $dataset->{'id'}, $dataset->{'lang'} ) )
@@ -66,20 +72,28 @@ while ( my $resource = $prism->next() )
             next;
         }
         
-        $add->execute( map { $dataset->{$_} }  qw/id title abstract date lang parent category subcategory url/ );
+        $add->execute( map { $dataset->{$_} }  qw/id title abstract date year lang parent category subcategory url/ );
         print " [added] [$dataset->{lang}] (".$idx++." / ~ 120000) ".$dataset->{url}."\n";
     }
     
 }
 
+# Lets make sure we finish with an HTML Lookup to break up to date.
+
 print "[complete] OK";
 
 
-
-sub sanitize
+sub normalize
 {
-    my ( $text ) = @_;
-    $text =~ s/\n+//g;
-    $text =~ s/\s+/_/g;
-    return $text;
+    my ( $dataset ) = @_ ;
+    
+    my $normalized = {};
+    
+    foreach my $entry ( keys %{ $dataset })
+    {
+        $normalized->{ $entry } = ( $dataset->{ $entry } eq 'Not Entered' || $dataset->{ $entry } eq 'Non Saisie')
+                                        ? '' : $dataset->{ $entry };
+    }
+    
+    return $normalized;
 }
