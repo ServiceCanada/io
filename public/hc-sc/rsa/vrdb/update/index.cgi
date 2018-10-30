@@ -25,8 +25,8 @@ my $dbh = DBI->connect(
 );
 
 
-my $add = $dbh->prepare('INSERT INTO recalls ( id, title, abstract, date, lang, parent, category, subcategory, url ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-my $update = $dbh->prepare('UPDATE recalls SET title = ?, subcategory = ? WHERE id = ?');
+my $add = $dbh->prepare( $prism->config->{'database'}->{'sql'}->{'add'} );
+my $update = $dbh->prepare( $prism->config->{'database'}->{'sql'}->{'update'} );
 
 while ( my $resource = $prism->next() )
 {

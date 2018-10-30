@@ -24,8 +24,7 @@ my $dbh = DBI->connect(
 
 my $coder = JSON->new->utf8;
 
-my $add = $dbh->prepare('INSERT INTO recalls ( id, title, abstract, date, lang, parent, category, subcategory, url ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-
+my $add = $dbh->prepare( $prism->config->{'database'}->{'sql'}->{'add'} );
 
 while (my $resource = $prism->next() )
 {
