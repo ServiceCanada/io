@@ -12,6 +12,8 @@ use Prism;
 use DBI;
 use YAML::Tiny;
 use Text::CSV_XS;
+use DateTime;
+
 
 # =================
 # = PREPROCESSING =
@@ -23,13 +25,13 @@ my $dbh = DBI->connect(
     ,"","", { sqlite_unicode => 1, AutoCommit => 0 }
 );
 
-my $add = $dbh->prepare( $prism->config->{'database'}->{'sql'}->{'add'} );
+my $add = $dbh->prepare( $prism->config->{'database'}->{'sql'}->{'create'} );
 my $update = $dbh->prepare( $prism->config->{'database'}->{'sql'}->{'update'} );
 
-my $rc = 1;
+my $rc = 1; 
 
 while ( my $resource = $prism->next() )
-{
+{    
     my $io = $prism->download( $resource->{'uri'}, $resource->{'source'} );
     
     if ( $io == undef )
@@ -52,8 +54,10 @@ while ( my $resource = $prism->next() )
         $dataset = normalize( $dataset );
         
         # lets check if this recall exists
-        if ( my ( $id, $sub, $title, $lang ) = $dbh->selectrow_array("SELECT id, subcategory, title, lang  FROM recalls WHERE id=? AND lang=? LIMIT 1", {}, $dataset->{'id'}, $dataset->{'lang'} ) )
-        {
+        if ( my ( $id, $sub, $title, $lang, $year ) = $dbh->selectrow_array( 
+                        $prism->config->{'database'}->{'sql'}->{'read'}, {},
+                        $dataset->{'id'}, $dataset->{'lang'} )
+        ){
           
             unless ( $sub =~ m/\b\Q$dataset->{'subcategory'}\E\b/ )
             {
@@ -62,7 +66,8 @@ while ( my $resource = $prism->next() )
                 
                 $title .= ', ' . $dataset->{'subcategory'} unless $title =~ m/\b\Q$dataset->{'subcategory'}\E\b/;
                 $sub .= ';' . $dataset->{'subcategory'};
-                $update->execute( $title, $sub, $id, $lang );
+                $year .= ';' . $dataset->{'year'} unless $year =~ m/\b\Q$dataset->{'year'}\E\b/;
+                $update->execute( $title, $sub, $year , $id, $lang );
             }
             next;
         }
@@ -77,15 +82,12 @@ while ( my $resource = $prism->next() )
         }
     }
     
+    # commit any last changes
+    $dbh->commit;
+    
 }
 
-# commit any last changes
-$dbh->commit;
-
-# Lets make sure we finish with an HTML Lookup to break up to date.
-
-print "[complete] OK";
-
+say "[complete] OK";
 
 sub normalize
 {
