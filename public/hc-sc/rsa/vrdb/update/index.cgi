@@ -27,6 +27,7 @@ my $dbh = DBI->connect(
 
 my $add = $dbh->prepare( $prism->config->{'database'}->{'sql'}->{'create'} );
 my $update = $dbh->prepare( $prism->config->{'database'}->{'sql'}->{'update'} );
+my ( $latest ) = $dbh->selectrow_array( $prism->config->{'database'}->{'sql'}->{'latest'}, {} );
 
 my $rc = 1;
 
@@ -39,7 +40,7 @@ while ( my $resource = $prism->next() )
     {
         $io = $prism->basedir->child( $resource->{'source'} );
     }
-        
+    
     $io = $io->openr;
     
     my $csv = Text::CSV_XS->new ( { binary => 1 } )  # should set binary attribute.
@@ -47,40 +48,48 @@ while ( my $resource = $prism->next() )
                     
     $csv->column_names( @{ $csv->getline( $io ) } );
     
+    
     while (my $row = $csv->getline_hr($io) )
     {
         my $rez = dclone( $resource );
         my $dataset = $prism->transform( $row, $rez );
-        
+                
         $dataset = normalize( $dataset );
         
+       if ( $dataset->{'id'} eq $latest ){
+           say " [][[]]]]]]]]]]]]]]]";
+           last;
+       }
+        
+        say " [false adding ] [$dataset->{lang}] ".$dataset->{'url'};
+        
         # lets check if this recall exists
-        if ( my ( $id, $sub, $title, $lang, $year ) = $dbh->selectrow_array( 
-                        $prism->config->{'database'}->{'sql'}->{'read'}, {},
-                        $dataset->{'id'}, $dataset->{'lang'} )
-        ){
-          
-            unless ( $sub =~ m/\b\Q$dataset->{'subcategory'}\E\b/ )
-            {
-                # We are merging here
-                print " [merging] [$dataset->{lang}] ".$dataset->{'url'}."\n";
-                
-                $title .= ', ' . $dataset->{'subcategory'} unless $title =~ m/\b\Q$dataset->{'subcategory'}\E\b/;
-                $sub .= ';' . $dataset->{'subcategory'};
-                $year .= ';' . $dataset->{'year'} unless $year =~ m/\b\Q$dataset->{'year'}\E\b/;
-                $update->execute( $title, $sub, $year , $id, $lang );
-            }
-            next;
-        }
-        
-        $add->execute( map { $dataset->{$_} }  split ' ', $prism->config->{'database'}->{'sql'}->{'fields'} );
-        print " [added] [$dataset->{lang}] ".$dataset->{'url'}."\n";
-        
-        unless ( $rc++ % 1000 )
-        {
-            print " [commit] adding record changes to DB\n";
-            $dbh->commit;
-        }
+        # if ( my ( $id, $sub, $title, $lang, $year ) = $dbh->selectrow_array(
+#                         $prism->config->{'database'}->{'sql'}->{'read'}, {},
+#                         $dataset->{'id'}, $dataset->{'lang'} )
+#         ){
+#
+#             unless ( $sub =~ m/\b\Q$dataset->{'subcategory'}\E\b/ )
+#             {
+#                 # We are merging here
+#                 print " [merging] [$dataset->{lang}] ".$dataset->{'url'}."\n";
+#
+#                 $title .= ', ' . $dataset->{'subcategory'} unless $title =~ m/\b\Q$dataset->{'subcategory'}\E\b/;
+#                 $sub .= ';' . $dataset->{'subcategory'};
+#                 $year .= ';' . $dataset->{'year'} unless $year =~ m/\b\Q$dataset->{'year'}\E\b/;
+#                 $update->execute( $title, $sub, $year , $id, $lang );
+#             }
+#             next;
+#         }
+#
+#         $add->execute( map { $dataset->{$_} }  split ' ', $prism->config->{'database'}->{'sql'}->{'fields'} );
+#         print " [added] [$dataset->{lang}] ".$dataset->{'url'}."\n";
+#
+#         unless ( $rc++ % 1000 )
+#         {
+#             print " [commit] adding record changes to DB\n";
+#             $dbh->commit;
+#         }
     }
     
     # commit any last changes
@@ -101,6 +110,6 @@ sub normalize
         $normalized->{ $entry } = ( $dataset->{ $entry } eq 'Not Entered' || $dataset->{ $entry } eq 'Non Saisie')
                                         ? '' : $dataset->{ $entry };
     }
-    
     return $normalized;
 }
+
