@@ -3,7 +3,7 @@ use common::sense;
 
 use HTTP::Tiny;
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
-use Class::Tiny qw(http basedir);
+use Class::Tiny qw(http basedir last);
 
 sub BUILD
 {
@@ -27,6 +27,8 @@ sub BUILD
     
     $self->http( HTTP::Tiny->new( %props ) );
     
+    $self->last( time );
+    
     return $self;
 }
 
@@ -35,7 +37,11 @@ sub get
 {
     my ( $self, $url ) = @_;
     
+    sleep(1);
+    
     my $response = $self->http->get( $url );
+    
+    $self->last( time );
     
     return unless ( $response->{success} && length $response->{content} );
     

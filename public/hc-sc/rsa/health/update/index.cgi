@@ -12,6 +12,8 @@ use JSON;
 use Storable qw/dclone/; 
 use Data::Dumper;
 
+use Digest::SHA qw(sha256_hex);
+
 # =================
 # = PREPROCESSING =
 # =================
@@ -32,11 +34,15 @@ while (my $resource = $prism->next() )
     
     foreach my $recall (  @{ $io->{'results'} }  )
     {
-    
-        my $url = $prism->morph( $resource->{'source'}, $recall );
+                
+        my ( $uid, $url ) = ( sha256_hex( $prism->morph( $resource->{'source'}, $recall ) ) ,  $prism->morph( $resource->{'source'}, $recall ) );
         
-        my $data = $coder->decode( $prism->get( $url )->{'content'} );   
-
+        print " [trying] $uid\n";
+        
+        next if ( my ( $id ) = $dbh->selectrow_array( $prism->config->{'database'}->{'sql'}->{'read'}, {}, $uid ) );
+                
+        my $data = $coder->decode( $prism->get( $url )->{'content'} );
+        
         # lets set the category and sub category
         my $section = $data->{'panels'}->[0]->{'text'};
 
@@ -49,7 +55,7 @@ while (my $resource = $prism->next() )
         my $rez = dclone( $resource );
 
         my $dataset = $prism->transform( $data, $rez );
-
+        
         $add->execute( map { $dataset->{$_} }  split ' ', $prism->config->{'database'}->{'sql'}->{'fields'} );
         print " [added] [$dataset->{lang}] ".$dataset->{'url'}."\n";
     

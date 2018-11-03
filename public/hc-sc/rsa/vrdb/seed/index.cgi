@@ -65,7 +65,7 @@ while ( my $resource = $prism->next() )
                 print " [merging] [$dataset->{lang}] ".$dataset->{'url'}."\n";
                 
                 $title .= ', ' . $dataset->{'subcategory'} unless $title =~ m/\b\Q$dataset->{'subcategory'}\E\b/;
-                $sub .= ', ' . $dataset->{'subcategory'};
+                $sub .= ', ' . $dataset->{'subcategory'} unless $sub =~ m/\b\Q$dataset->{'subcategory'}\E\b/;
                 $year .= ', ' . $dataset->{'year'} unless $year =~ m/\b\Q$dataset->{'year'}\E\b/;
                 $update->execute( $title, $sub, $year , $id, $lang );
             }
