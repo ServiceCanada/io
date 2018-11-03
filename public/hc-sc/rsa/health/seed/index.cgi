@@ -24,7 +24,7 @@ my $dbh = DBI->connect(
 
 my $coder = JSON->new->utf8;
 
-my $add = $dbh->prepare( $prism->config->{'database'}->{'sql'}->{'add'} );
+my $add = $dbh->prepare( $prism->config->{'database'}->{'sql'}->{'create'} );
 
 while (my $resource = $prism->next() )
 {
@@ -33,7 +33,39 @@ while (my $resource = $prism->next() )
     foreach my $recall (  @{ $io->{'results'} }  )
     {
     
-        print $prism->morph( $resource->{'source'}, $recall ), "\n";
-    }
+        my $url = $prism->morph( $resource->{'source'}, $recall );
     
+        my $data = $coder->decode( $prism->get( $url )->{'content'} );
+
+        # lets set the category and sub category
+        my $section = $data->{'panels'}->[0]->{'text'};
+
+        $data->{'abstract'} = $data->{'panels'}->[1]->{'text'};
+
+        my @secs = ( $section =~ m/<b>(Catégorie|Category):<\/b>(.*?)<BR\/>/ );
+
+        $data->{ 'category' } = normalize( pop @secs );
+
+
+        my $rez = dclone( $resource );
+
+        my $dataset = $prism->transform( $data, $rez );
+
+        $add->execute( map { $dataset->{$_} }  split ' ', $prism->config->{'database'}->{'sql'}->{'fields'} );
+        print " [added] [$dataset->{lang}] ".$dataset->{'url'}."\n";
+    
+    }
+
 }
+
+
+sub normalize
+{
+    my ( $text ) = @_;
+
+    $text =~ s/^\s+//;
+    $text =~ s/\s+$//;
+
+    return $text;
+}
+      

@@ -12,6 +12,8 @@ use DBI;
 use YAML::Tiny;
 use XML::LibXML;
 
+use Digest::SHA qw(sha256_hex);
+
 #use Data::Dmp qw/dd/;
 #use XML::Tidy;
 
@@ -55,8 +57,8 @@ sub generate
        for ( my $idx = 0; $idx < scalar( @tagnames ); $idx++ )
        {
                my $tag = $doc->createElement( $tagnames[$idx] );
-               $tag->appendTextNode( $data[$idx]) ;
-               $recall->appendChild($tag);
+               $tag->appendTextNode( ( $tagnames[$idx] eq 'id' ) ? sha256_hex( $data[4] ) : $data[$idx] );
+               $recall->appendChild( $tag );
        }
        $root->appendChild( $recall );
    }
