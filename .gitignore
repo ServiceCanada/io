@@ -6,6 +6,9 @@
 # do not store any config files
 *.yml
 
+# .htaccess for private folder
+private/.htaccess
+
 ### Eclipse ###
 
 .metadata
