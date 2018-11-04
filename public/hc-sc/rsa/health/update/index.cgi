@@ -34,11 +34,10 @@ while (my $resource = $prism->next() )
     
     foreach my $recall (  @{ $io->{'results'} }  )
     {
+        my $predata = $prism->overlay( $recall, dclone( $resource ) );
                 
-        my ( $uid, $url ) = ( sha256_hex( $prism->morph( $resource->{'source'}, $recall ) ) ,  $prism->morph( $resource->{'source'}, $recall ) );
-        
-        print " [trying] $uid\n";
-        
+        my ( $url, $uid ) = map { $predata->{ $_ } } ( 'source', 'id') ;
+   
         next if ( my ( $id ) = $dbh->selectrow_array( $prism->config->{'database'}->{'sql'}->{'read'}, {}, $uid ) );
                 
         my $data = $coder->decode( $prism->get( $url )->{'content'} );
