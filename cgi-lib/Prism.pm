@@ -167,6 +167,11 @@ sub transform
      return shift->mapper->transform( @_ );
 }
 
+sub overlay
+{
+     return shift->mapper->overlay( @_ );
+}
+
 sub morph
 {
     return shift->mapper->stache->render(  @_ );

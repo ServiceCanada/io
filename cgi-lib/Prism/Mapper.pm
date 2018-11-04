@@ -47,6 +47,48 @@ sub transform
    return $transform;
 }
 
+sub overlay 
+{
+    
+    my ( $self, $data, $overrides ) = @_;
+            
+    my $map = { %{ $self->map() }, %{ $overrides } };
+    
+    my $dataset = { $self->_pluck(), %{ $data } };
+        
+    my $transform = {};
+    
+    foreach my $idx (keys %{ $map } )
+    {
+        $transform->{$idx} = $self->stache->render( $map->{$idx}, $dataset );
+    } 
+    
+   return $transform;
+}
+
+
+sub transform 
+{
+    my ( $self, $data, $overrides ) = @_;
+    
+    
+    # lets get rid of some other keys local file io keys
+    delete $overrides->{ $_ } for ( 'source', 'uri' );
+    
+    my $map = { %{ $self->map() }, %{ $overrides } };
+    
+    my $dataset = { $self->_pluck(), %{ $data } };
+        
+    my $transform = {};
+    
+    foreach my $idx (keys %{ $map } )
+    {
+        $transform->{$idx} = $self->stache->render( $map->{$idx}, $dataset );
+    } 
+    
+   return $transform;
+}
+
 
 sub _pluck
 {
