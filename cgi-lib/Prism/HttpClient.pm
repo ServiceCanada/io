@@ -3,7 +3,7 @@ use common::sense;
 
 use HTTP::Tiny;
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
-use Class::Tiny qw(http basedir last);
+use Class::Tiny qw(http basedir);
 
 sub BUILD
 {
@@ -26,9 +26,7 @@ sub BUILD
     $self->basedir( $args->{'basedir'} );
     
     $self->http( HTTP::Tiny->new( %props ) );
-    
-    $self->last( time );
-    
+        
     return $self;
 }
 
@@ -40,9 +38,7 @@ sub get
     sleep(1);
     
     my $response = $self->http->get( $url );
-    
-    $self->last( time );
-    
+      
     return unless ( $response->{success} && length $response->{content} );
     
     if ( $response->{headers}{'content-encoding'} eq 'gzip' )
