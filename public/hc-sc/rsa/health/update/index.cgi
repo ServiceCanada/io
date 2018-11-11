@@ -46,15 +46,26 @@ while (my $resource = $prism->next() )
 
         my @secs = ( $section =~ m/<b>(Catégorie|Category):<\/b>(.*?)<BR\/>/ );
 
-        $data->{ 'category' } = normalize( pop @secs );
-
         my $rez = dclone( $resource );
 
         my $dataset = $prism->transform( $data, $rez );
+
+        my $categories = categorize ( pop @secs );
+
+        # lets clear out the keys
+        $dataset->{'category'} = $dataset->{'subcategory'} = "";
+
+        foreach my $indx ( keys $categories )
+        {
+            $dataset->{ 'category' } = append( $dataset->{ 'category' }, $indx );
+            if ( scalar @{ $categories->{$indx} } )
+            {
+                $dataset->{ 'subcategory' } =  append( $dataset->{ 'subcategory' }, $_ )  for ( @{ $categories->{$indx} }  );
+            }
+        }
         
         $add->execute( map { $dataset->{$_} }  split ' ', $prism->config->{'database'}->{'sql'}->{'fields'} );
         print " [added] [$dataset->{lang}] ".$dataset->{'url'}."\n";
-    
     }
 
 }
@@ -66,7 +77,29 @@ sub normalize
 
     $text =~ s/^\s+//;
     $text =~ s/\s+$//;
-
+    
     return $text;
+}
+
+
+sub categorize
+{
+    my ( $catalog, $text ) = ( {}, @_ ) ;
+
+    foreach my $entry ( split /,\s*/, normalize( $text ) )
+    {
+        my ( $category, $sub ) = split /\s*-\s*/, $entry;
+        # lets create a child category
+        $catalog->{ $category } = [] unless ( $catalog->{ $category } );
+        push @{ $catalog->{ $category } }, $sub if ( $sub );
+    }
+    return $catalog;
+}
+
+sub append
+{
+    my ( $base, $addition ) = @_;
+    return $addition unless ( $base =~ m/\S/ );
+    return ( $base =~ m/\b\Q$addition\E\b/ ) ? $base : $base.", ".$addition;
 }
       
