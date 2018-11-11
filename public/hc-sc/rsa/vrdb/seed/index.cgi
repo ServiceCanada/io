@@ -73,6 +73,7 @@ while ( my $resource = $prism->next() )
         }
         
         $add->execute( map { $dataset->{$_} }  split ' ', $prism->config->{'database'}->{'sql'}->{'fields'} );
+        
         print " [added] [$dataset->{lang}] ".$dataset->{'url'}."\n";
         
         unless ( $rc++ % 1000 )

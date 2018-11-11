@@ -8,11 +8,8 @@ use cPanelUserConfig;
 use Path::Tiny qw/path/;
 use Prism;
 use DBI;
-use JSON;
+use JSON::MaybeXS;
 use Storable qw/dclone/; 
-use Data::Dumper;
-
-use Digest::SHA qw(sha256_hex);
 
 # =================
 # = PREPROCESSING =
@@ -24,7 +21,7 @@ my $dbh = DBI->connect(
     ,"","", { sqlite_unicode => 1 }
 );
 
-my $coder = JSON->new->utf8;
+my $coder = JSON::MaybeXS->new( utf8 => 1 );
 
 my $add = $dbh->prepare( $prism->config->{'database'}->{'sql'}->{'create'} );
 

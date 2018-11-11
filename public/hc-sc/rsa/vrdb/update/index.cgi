@@ -14,8 +14,6 @@ use YAML::Tiny;
 use Text::CSV_XS;
 use DateTime;
 
-
-
 # =================
 # = PREPROCESSING =
 # =================
@@ -30,17 +28,21 @@ my $add = $dbh->prepare( $prism->config->{'database'}->{'sql'}->{'create'} );
 my $update = $dbh->prepare( $prism->config->{'database'}->{'sql'}->{'update'} );
 my ( $latest ) = $dbh->selectrow_array( $prism->config->{'database'}->{'sql'}->{'latest'}, {} );
 
-my $rc = 1; 
+my ( $rc, $modified  ) = ( 1, 0 ); 
 
 while ( my $resource = $prism->next() )
 {    
     my $io = $prism->download( $resource->{'uri'}, $resource->{'source'} );
     
+    next unless ( $modified || $io );
+
+    $modified = 1;
+
     if ( $io == undef )
     {
         $io = $prism->basedir->child( $resource->{'source'} );
     }
-        
+     
     $io = $io->openr;
     
     my $csv = Text::CSV_XS->new ( { binary => 1 } )  # should set binary attribute.
