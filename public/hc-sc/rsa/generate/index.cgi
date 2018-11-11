@@ -12,15 +12,15 @@ use DBI;
 use YAML::Tiny;
 use XML::LibXML;
 
+use POSIX qw(strftime tzset);
 use Digest::SHA qw(sha256_hex);
-
-#use Data::Dmp qw/dd/;
-#use XML::Tidy;
-
 
 # =================
 # = PREPROCESSING =
 # =================
+# Lets set the correct timezone
+$ENV{'TZ'} = 'America/Toronto';
+
 my $prism = Prism->new( file => 'index.yml' );
 
 my $dbh = DBI->connect(
@@ -34,10 +34,8 @@ my @tags = @{ $prism->config->{'xml'}->{'tags'} };
 my $all = $prism->basedir->sibling('all.xml');
 my $latest = $prism->basedir->sibling('latest.xml');
 
-$all->spew_raw( generate( $prism->config->{'database'}->{'sql'}->{'all'}, @tags ) );
-
+# $all->spew_raw( generate( $prism->config->{'database'}->{'sql'}->{'all'}, @tags ) );
 $latest->spew_raw( generate( $prism->config->{'database'}->{'sql'}->{'latest'}, @tags ) );
-
 
 sub generate
 {
@@ -46,6 +44,10 @@ sub generate
     my $doc = XML::LibXML::Document->new('1.0', 'utf-8');
     my $root = $doc->createElement("recalls");
     
+    # set the date
+    my $now = strftime "%Y-%m-%d %H:%M:%S", localtime;
+    $root->setAttribute('generated', $now );
+
     my $sth = $dbh->prepare( $sql )
                        or die "prepare statement failed: $dbh->errstr()";
    $sth->execute();
