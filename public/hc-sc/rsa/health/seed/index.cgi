@@ -32,7 +32,9 @@ while (my $resource = $prism->next() )
     foreach my $recall (  @{ $io->{'results'} }  )
     {
     
-        my $url = $prism->morph( $resource->{'source'}, $recall );
+        my $predata = $prism->overlay( $recall, dclone( $resource ) );
+                
+        my ( $url, $uid ) = map { $predata->{ $_ } } ( 'source', 'id') ;
         
         my $data = $coder->decode( $prism->get( $url )->{'content'} );   
 
