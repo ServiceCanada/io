@@ -34,9 +34,13 @@ while (my $resource = $prism->next() )
         my $predata = $prism->overlay( $recall, dclone( $resource ) );
                 
         my ( $url, $uid ) = map { $predata->{ $_ } } ( 'source', 'id') ;
-   
-        next if ( my ( $id ) = $dbh->selectrow_array( $prism->config->{'database'}->{'sql'}->{'read'}, {}, $uid ) );
-                
+
+        if ( my ( $iurl ) = $dbh->selectrow_array( $prism->config->{'database'}->{'sql'}->{'read'}, {}, $uid ) )
+        {
+            say " [skipping  already seen ] - $iurl ";
+            next;
+        }
+            
         my $data = $coder->decode( $prism->get( $url )->{'content'} );
         
         # lets set the category and sub category
@@ -49,6 +53,10 @@ while (my $resource = $prism->next() )
         my $rez = dclone( $resource );
 
         my $dataset = $prism->transform( $data, $rez );
+
+        # Lets correct the id
+        # TODO: HC changes the recallID from the listing to the details, this is a workaround to ensure proper ID's are being used.
+        $dataset->{'id'} = $uid;
 
         my $categories = categorize ( pop @secs );
 
