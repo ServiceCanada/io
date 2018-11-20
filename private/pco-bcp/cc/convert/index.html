@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    
+    <!-- Page Title -->
+    <title>Convert</title>
+    
+    <!-- turretcss CSS -->
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/bigfishtv-turret/4.0.0/turret.min.css" crossorigin="anonymous">
+  </head>
+  <body>
+      <main class="container">
+          <h1>Consulting Canadians Converter</h1>
+          <p>This is a tool that will convert a CSV to a predefined datatable format</p>
+          <form action="index.cgi" method="post" enctype="multipart/form-data">
+            <fieldset>
+              <div class="field">
+                <label class="select" for="template">Format
+                  <select id="template" name="template">
+                      <option value="cc">Consulting Canadians</option>
+                  </select>
+                  </label>
+              </div>
+              <div class="field">
+                <label class="select" for="language">Language
+                  <select id="language" name="language">
+                      <option value="en">English</option>
+                      <option value="fr">French</option>
+                  </select>
+                  </label>
+              </div>
+              <div class="field">
+                <label for="input-file">File to Convert</label>
+                <input type="file" name="input-file" />
+              </div>
+              <div class="field">
+                <button type="submit" class="button">Submit</button>
+                <button type="reset" class="button">Reset</button>
+              </div>
+            </fieldset>
+          </form>
+      </main>    
+  </body>
+</html>

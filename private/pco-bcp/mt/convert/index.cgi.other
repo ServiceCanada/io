@@ -125,7 +125,7 @@ sub label
     
     if ( $tag =~ /(on track|en voie)$/ )
     {
-         return "<span class=\"label label-success underway-on-track\" style=\"background: #d0e6d0;border-color: #92c691;\">".( $lang eq 'en' ?  'Actions taken, progress made&#8203;' : 'Actions prises, progrès accomplis&#8203;' )."</span>"
+         return "<span class=\"label label-success underway-on-track\" style=\"background: #d0e6d0;border-color: #92c691;\">".( $lang eq 'en' ?  'Actions taken, progress made' : 'Actions prises, progrès accomplis' )."</span>"
     }   
     
     if ( $tag =~ /(commitment|permanent)$/ )
@@ -149,7 +149,7 @@ sub modify
     
     if ( $tag =~ /(on track|en voie)$/ )
     {
-         return ( $lang eq 'en'  ) ?  'Actions taken, progress made&#8203;' : 'Actions prises, progrès accomplis&#8203;';
+         return ( $lang eq 'en'  ) ?  'Actions taken, progress made' : 'Actions prises, progrès accomplis';
     }
     
     if ( $tag =~ /(commitment|permanent)$/ )
