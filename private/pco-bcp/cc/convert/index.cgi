@@ -12,7 +12,6 @@ use YAML::Tiny;
 use Text::CSV_XS;
 use Mustache::Simple;
 
-use DBI;
 use CGI qw(-utf8);
 use HTML::Entities;
 
@@ -29,7 +28,11 @@ my $base = path( substr( File::Spec->rel2abs($0), 0, rindex( File::Spec->rel2abs
 my $config = YAML::Tiny->read( $dir->sibling('index.yml')->stringify )->[0];
 my $stache = Mustache::Simple->new();
 
-my $rolodex = $config->{'subjects'};
+my ( $rolodex, $departments, $status ) = ( 
+    $config->{'subjects'},
+    $config->{'departments'},
+    $config->{'status'}
+    );
 
 my $cgi = CGI->new();
 
@@ -65,9 +68,8 @@ while (my $row = $csv->getline_hr($io) )
     my $dataset = {
         start_date => $row->{'start_date'},
         end_date => $row->{'end_date'},
-        status => $row->{'status'},
-        subjects => $row->{'subjects'},
-        subject => extroplate( $row->{'subjects'}, $lang ),
+        status => extroplate( $row->{'status'}, $lang, $status ),
+        subject => extroplate( $row->{'subjects'}, $lang, $rolodex ),
         title => ( $lang eq 'en' )  ? $row->{'title_en'} : $row->{'title_fr'},
         description => ( $lang eq 'en' )  ? $row->{'description_en'} : $row->{'description_fr'},
         owner => splitselect( '\s+\|\s+', $row->{'owner_org_title'}, $lang )
@@ -75,7 +77,7 @@ while (my $row = $csv->getline_hr($io) )
 
     if ( begins_with( $row->{'profile_page_en'}, 'http' ) )
     {
-        $dataset->{'link'} = ( $row->{'profile_en'} )  ? $row->{'profile_page_en'} : $row->{'profile_page_fr'};
+        $dataset->{'link'} = ( $lang eq 'en' )  ? $row->{'profile_page_en'} : $row->{'profile_page_fr'};
     }
 
     $rendered .= $stache->render( $mold, $dataset );
@@ -91,12 +93,12 @@ print $stache->render( $dir->sibling('complete.html')->slurp_utf8, { rendered =>
 # ====================
 sub extroplate 
 {     
-    my ($text, $lang) = @_;
+    my ($text, $lang, $dictionary ) = @_;
     my @subjects = split( /,/, $text );
     for ( my $idx = 0; $idx < scalar(@subjects); $idx++ )
     {
        #my ( $label ) = $dbh->selectrow_array( 'SELECT '.$lang.' FROM subjects WHERE id = ?', {}, $subjects[$idx] );
-       $subjects[$idx] = $rolodex->{ $subjects[$idx] }->{$lang};
+       $subjects[$idx] = $dictionary->{ $subjects[$idx] }->{$lang};
     }
     return join( ' | ', @subjects );
 }
