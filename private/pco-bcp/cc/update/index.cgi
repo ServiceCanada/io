@@ -40,8 +40,8 @@ foreach my $subject (@subjects)
     my @columns = $csv->fields();
     my $values = {
         'id' => $columns[0],
-        'fr' => $columns[1],
-        'en' => $columns[2]
+        'en' => $columns[1],
+        'fr' => $columns[2]
     };
     my ($stmt, @bind) = $builder->insert( 'subjects', $values );
     my $sth = $dbh->prepare($stmt);

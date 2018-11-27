@@ -14,11 +14,11 @@
   </head>
   <body>
       <main class="container">
-          <h1>Conversion complete</h1>
-          <p style="border-bottom: 1px solid #777; margin-bottom: 2em">Please see the below code</p>
-          <div style="white-space: pre;">
-              {{ rendered }}
-          </div>
+          <h1>Order Complete</h1>
+          <p>Please click the following link to download your completed products</p>
+          <ul>
+              <li><a href="{{ link }}">{{ title }}</a></li>
+          </ul>
       </main>    
   </body>
 </html>

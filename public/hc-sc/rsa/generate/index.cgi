@@ -31,10 +31,10 @@ my $dbh = DBI->connect(
 my @tags = @{ $prism->config->{'xml'}->{'tags'} };
 
 # Write to file
-my $all = $prism->basedir->sibling('all.xml');
+# my $all = $prism->basedir->sibling('all.xml');
 my $latest = $prism->basedir->sibling('latest.xml');
 
-# $all->spew_raw( generate( $prism->config->{'database'}->{'sql'}->{'all'}, @tags ) );
+$all->spew_raw( generate( $prism->config->{'database'}->{'sql'}->{'all'}, @tags ) );
 $latest->spew_raw( generate( $prism->config->{'database'}->{'sql'}->{'latest'}, @tags ) );
 
 sub generate

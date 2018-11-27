@@ -27,6 +27,7 @@ my $base = path( substr( File::Spec->rel2abs($0), 0, rindex( File::Spec->rel2abs
 
 my $config = YAML::Tiny->read( $dir->sibling('index.yml')->stringify )->[0];
 my $stache = Mustache::Simple->new();
+my $scharacter = quotemeta('_x000D_');
 
 my $dbh = DBI->connect(
     "dbi:SQLite:dbname=".$base->child( $config->{'database'}->{'path'} )
@@ -79,8 +80,12 @@ while (my $row = $csv->getline_hr($io) )
     $row->{'MoreInformation'} = ( $lang eq 'en' ) ? "More Information" : "Plus d'information";
     $row->{'Label'} = label( $row->{'Status'}, $lang );
     $row->{'MinList'} = ministers( $row->{'Ministers'} );
-    # MarkDown for Comment
+
+    # MarkDown for Comment & Commitment
     $row->{'Comment'} = compress( markdown( normalize( $row->{'Comment'} ) ) );
+    $row->{'Commitment'} = markdown( $row->{'Commitment'} );
+    $row->{'sStatement'} = stripMarkdown( $row->{'Statement'} );
+    $row->{'Statement'} = markdown( $row->{'Statement'} );
     # Other Links
     $row->{'OtherLinks'} = otherlinks( 
             [ $row->{'Link_1'}, $row->{'Link_Text_1'} ],
@@ -193,15 +198,25 @@ sub normalize
     my ( $text ) = @_;
     $text =~ s/^\s+//;
     $text =~ s/\s+$//;
+    $text =~s/$scharacter//g;
     return $text;
 }
-
 #FUNCTIONS
 sub sanitize
 {
     my ( $text ) = @_;
     $text =~ s/\n+//g;
     $text =~ s/\s+/_/g;
+    $text =~ s/$scharacter//g;
+    return $text;
+}
+
+sub stripMarkdown
+{
+    my ( $text ) = @_;
+    $text =~ s/\*//g;
+    $text =~ s/_//g;
+    $text =~ s/\+//g;
     return $text;
 }
 

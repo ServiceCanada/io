@@ -32,9 +32,7 @@ while (my $resource = $prism->next() )
     foreach my $recall (  @{ $io->{'results'} }  )
     {
     
-        my $predata = $prism->overlay( $recall, dclone( $resource ) );
-                
-        my ( $url, $uid ) = map { $predata->{ $_ } } ( 'source', 'id') ;
+        my $url = $prism->morph( $resource->{'source'}, $recall );
         
         my $data = $coder->decode( $prism->get( $url )->{'content'} );   
 
@@ -49,10 +47,6 @@ while (my $resource = $prism->next() )
 
         my $dataset = $prism->transform( $data, $rez );
 
-        # Lets correct the id
-        # TODO: HC changes the recallID from the listing to the details, this is a workaround to ensure proper ID's are being used.
-        $dataset->{'id'} = $uid;
-        
         my $categories = categorize ( pop @secs );
 
         # lets clear out the keys

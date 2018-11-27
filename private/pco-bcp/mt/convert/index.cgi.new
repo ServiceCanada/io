@@ -23,7 +23,7 @@ use Text::StripAccents;
 # =================
 
 my $dir = path($0)->realpath;
-my $base = path( substr( File::Spec->rel2abs($0), 0, rindex( File::Spec->rel2abs($0), '/public/' ) ) );
+my $base = path( substr( File::Spec->rel2abs($0), 0, rindex( File::Spec->rel2abs($0), '/private/' ) ) );
 
 my $config = YAML::Tiny->read( $dir->sibling('index.yml')->stringify )->[0];
 my $stache = Mustache::Simple->new();
@@ -65,10 +65,19 @@ while (my $row = $csv->getline_hr($io) )
 {
     next unless ( $row->{'Comment'} );
     
-    $row->{'Anticipated'} = ( $lang eq 'en' ) ? "Result anticipated" : "Résultat obtenu";
+    if ( $lang ne 'en' )
+    {
+        $row->{'FrenchSpace'} = "&nbsp;"
+    } 
+    
+    $row->{'Anticipated'} = ( $lang eq 'en' ) 
+                    ? "Result ".( ($row->{'Status'} =~ /^(Completed|Complété)/ ) ? "achieved" : "anticipated" )
+                    : "Résultat ".( ($row->{'Status'} =~ /^(Completed|Complété)/ ) ? "obtenu" : "escompté" );
+
+    # $row->{'Anticipated'} = ( $lang eq 'en' ) ? "Result anticipated" : "Résultat obtenu";
     $row->{'ClickForMore'} = ( $lang eq 'en' ) ? "Click to see more information" : "Cliquez pour voir plus d'informations";
     $row->{'MoreInformation'} = ( $lang eq 'en' ) ? "More Information" : "Plus d'information";
-    $row->{'Label'} = label( $row->{'Status'} );
+    $row->{'Label'} = label( $row->{'Status'}, $lang );
     $row->{'MinList'} = ministers( $row->{'Ministers'} );
     # MarkDown for Comment
     $row->{'Comment'} = compress( markdown( normalize( $row->{'Comment'} ) ) );
@@ -82,19 +91,20 @@ while (my $row = $csv->getline_hr($io) )
     );
     
     $row->{'Vintage'} = $config->{'datemap'}->{ $row->{'Vintage'} }->{ $lang };
+
+    $row->{'Status'} = $row->{'Status'};
     
     $rendered .= $stache->render( $mold, $row );
 }
 
-print $stache->render( $dir->sibling('complete.html')->slurp_utf8, { rendered => $rendered } );
-
 # ============
 # = RESPONSE =
 # ============
+print $stache->render( $dir->sibling('complete.html')->slurp_utf8, { rendered => $rendered } );
 
-
-
-
+# ====================
+# = HELPER FUNCTIONS =
+# ====================
 sub ministers 
 { 
     my ( $ministers ) = @_; 
@@ -109,17 +119,15 @@ sub ministers
     return $list."</ul>\n"; 
 } 
 
-
-
 sub label 
 { 
-    my $tag = shift; 
-    return "<span class=\"label label-success completed-fully-met\">$tag</span>" if ( $tag =~ /(fully met|totalement)$/ ); 
-    return "<span class=\"label label-success completed-modified\">$tag</span>" if ( $tag =~ /(modified|modifié)$/ ); 
-    return "<span class=\"label label-success underway-on-track\">$tag</span>" if ( $tag =~ /(on track|en voie)$/ ); 
-    return "<span class=\"label label-success underway-with-challenges\">$tag</span>" if ( $tag =~ /(with challenges|avec défis)$/ ); 
-    return "<span class=\"label label-success not-being-pursued\">$tag</span>" if ( $tag =~ /(pursued|envisagé)$/ ); 
-    return "<span class=\"label label-success guidance\">$tag</span>" if ( $tag =~ /(commitment|permanent)$/ ); 
+    my ($tag, $lang) = @_;
+    return "<span class=\"label label-success underway-on-track\" style=\"background: #d0e6d0;border-color: #92c691;\">".( $lang eq 'en' ?  'Actions taken, progress made' : 'Actions prises, progrès accomplis' )."</span>" if ( $tag =~ /(progress made|progrès accomplis)$/ );
+    return "<span class=\"label label-success guidance\"  style=\"background: #d0e6d0;border-color: #b6d9b6;\">".$tag."</span>"  if ( $tag =~ /(progress made|objectif permanent)$/ );
+    return "<span class=\"label label-success underway-with-challenges\" style=\"background: rgba(246,96,2,0.1);border-color: #f66002;\">".$tag."</span>" if ( $tag =~ /(facing challenges|à relever)$/ );
+    return "<span class=\"label label-success completed-fully-met\" style=\"background: #d0e6d0;border-color: #478e46;\">$tag</span>" if ( $tag =~ /(fully met|totalement)$/ ); 
+    return "<span class=\"label label-success completed-modified\" style=\"background: #d0e6d0;border-color: #65aa65;\">$tag</span>" if ( $tag =~ /(modified|modifié)$/ ); 
+    return "<span class=\"label label-success not-being-pursued\" style=\"background: rgba(231,0,0,0.1);border-color: #e70000;\">$tag</span>" if ( $tag =~ /(pursued|envisagé)$/ ); 
 } 
 
 sub otherlinks 

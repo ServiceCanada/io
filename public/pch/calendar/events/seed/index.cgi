@@ -41,6 +41,9 @@ while( my $resource = $prism->next() )
         foreach my $event ( @{ $json->{'data'} } )
         {
             my $dataset = $prism->transform( $event, $resource );
+            
+            $dataset->{'alerts'} = $json->{'alerts'};
+            
             push @{ $index->{'data'} }, $dataset;
             
             #lets create this dataset

@@ -8,12 +8,11 @@ use Prism::HttpClient;
 use Prism::Mail;
 use Prism::Mapper;
 
-use Class::Tiny qw(http config file mail catalog basedir mapper), {
+use Class::Tiny qw(http config file mail catalog basedir mapper),
+    {
     index => 0,
-    total => 0 
-};
-
-
+    total => 0
+    };
 
 #################### subroutine header begin ####################
 
@@ -33,54 +32,55 @@ See Also   :
 
 #################### subroutine header end ####################
 
+sub BUILD {
+    my ( $self, $args ) = @_;
 
-sub BUILD
-{
-    my ($self, $args) = @_;
-        
     # set the basedir
     $self->basedir( path($0)->absolute->parent );
-    
+
     # set the config
-    $self->config( YAML::Tiny->read( $self->basedir->child( $self->file )->stringify )->[0] );
-    
-    if ( $self->config->{'catalog'} )
-    {
+    $self->config(
+        YAML::Tiny->read( $self->basedir->child( $self->file )->stringify )
+            ->[0] );
+
+    if ( $self->config->{'catalog'} ) {
         $self->catalog( $self->config->{'catalog'} );
         $self->total( scalar @{ $self->config->{'catalog'} } );
-        
+
         # The will need to init a crawler
         require Prism::HttpClient;
-        
-        $self->http( Prism::HttpClient->new ( basedir => $self->basedir, %{ $self->config->{'http'} } ) );
+
+        $self->http(
+            Prism::HttpClient->new(
+                basedir => $self->basedir,
+                %{ $self->config->{'http'} }
+            )
+        );
     }
-    
+
     # Mail
-    $self->mail( 
-        Prism::Mail->new ( 
+    $self->mail(
+        Prism::Mail->new(
             basedir => $self->basedir,
-            host => 'local',
+            host    => 'local',
             %{ $self->config->{'mail'} }
         )
     );
-    
+
     # Mail
-    $self->mapper( 
-        Prism::Mapper->new ( 
+    $self->mapper(
+        Prism::Mapper->new(
             basedir => $self->basedir,
             %{ $self->config->{'http'}->{'map'} }
         )
     );
 
-    
     return $self;
 }
-
 
 #################### main pod documentation begin ###################
 ## Below is the stub of documentation for your module.
 ## You better edit it!
-
 
 =head1 NAME
 
@@ -124,7 +124,7 @@ Blah blah blah.
 
 This program is free software licensed under the...
 
-	The MIT License
+    The MIT License
 
 The full text of the license can be found in the
 LICENSE file included with this module.
@@ -139,75 +139,68 @@ perl(1).
 #################### main pod documentation end ###################
 
 sub parent {
-        
-        my ( $self, $needle, $default ) = @_;
-    
-        return $self->basedir unless ( $needle ); # just return self if no search if performed
-    
-        my $path = $self->basedir;
 
-        while ( ! $path->is_rootdir ) {
-        
-            return $path if ( $path->basename eq $needle  );
-        
-            $path = $path->parent;
-        }
-    
-        return ( $default ) ? path( $default )->absolute : undef;
+    my ( $self, $needle, $default ) = @_;
+
+    return $self->basedir
+        unless ($needle);    # just return self if no search if performed
+
+    my $path = $self->basedir;
+
+    while ( !$path->is_rootdir ) {
+
+        return $path if ( $path->basename eq $needle );
+
+        $path = $path->parent;
+    }
+
+    return ($default) ? path($default)->absolute : undef;
 }
 
-sub diag
-{
+sub diag {
     require Data::Dmp;
     return Data::Dmp::dmp shift;
 }
 
-sub transform
-{
-     return shift->mapper->transform( @_ );
+sub transform {
+    return shift->mapper->transform(@_);
 }
 
-sub overlay
-{
-     return shift->mapper->overlay( @_ );
+sub overlay {
+    return shift->mapper->overlay(@_);
 }
 
-sub morph
-{
-    return shift->mapper->stache->render(  @_ );
+sub morph {
+    return shift->mapper->stache->render(@_);
 }
 
-sub message
-{
-     return shift->mail->message( @_ );
+sub message {
+    return shift->mail->message(@_);
 }
 
-sub download
-{
-    return shift->http->download( @_ );
+sub download {
+    return shift->http->download(@_);
 }
 
-sub get
-{
-    return shift->http->get( @_ );
+sub get {
+    return shift->http->get(@_);
 }
 
-sub next
-{
-    my ( $self ) = shift;
-    
+sub next {
+    my ($self) = shift;
+
     my $idx = $self->index;
-    
-    if ( $idx < $self->total )
-    {
+
+    if ( $idx < $self->total ) {
         $self->index( $idx + 1 );
-        return $self->catalog->[ $idx ]; 
+        return $self->catalog->[$idx];
     }
-    
-    $self->index( 0 );
-    return undef;   
+
+    $self->index(0);
+    return undef;
 }
 
 1;
+
 # The preceding line will help the module return a true value
 
