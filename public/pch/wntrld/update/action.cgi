@@ -10,6 +10,7 @@ use Path::Tiny qw/path/;
 use YAML::Tiny;
 use JSON::XS;
 use Prism;
+use Storable qw/dclone/;
 
 
 # =================
@@ -34,28 +35,37 @@ while( my $resource = $prism->next() ){
 	# lets skip if nothing is there
 	next unless ( $response->{'success'} );
 
-	# path($0)->sibling( $resource->{'source'} )->touchpath->spew_raw( $response->{'content'});
+	path($0)->sibling( $resource->{'source'} )->touchpath->spew_raw( $response->{'content'});
 
 	my $source = $datadir->child( $resource->{'source'} )->touchpath;
 
 	if ( $response->{success} ){
 
-		my $json = $coder->decode( $response->{'content'});
+		my $json = $coder->decode( $response->{'content'} );
 
-		my $index = { created => time, data => [] };
+		my $index = { created => time, data => [], alerts => $json->{'alerts'} };
+
+		my $locations = {};
 
 		foreach my $event ( @{ $json->{'data'} } ){
-			my $dataset = $prism->transform( $event, $resource );
 
-			$dataset->{'alerts'} = $json->{'alerts'};
+			my $dataset = $prism->transform( $event, $resource );
+			my $single =  dclone($dataset);
+
+			$locations->{ $dataset->{'location'} }++ if ( $dataset->{'location'} ne '' );
 
 			push @{ $index->{'data'} }, $dataset;
 
+			$single->{'alerts'} = $json->{'alerts'};
+
 			#lets create this dataset
-			$source->sibling( $dataset->{'id'}.'.json' )->spew_raw( $coder->encode($dataset)  );
+			$source->sibling( $dataset->{'id'}.'.json' )->spew_raw( $coder->encode($single)  );
 
 			$cind++;
 		}
+
+		# lets not forget the alerts
+		$index->{'locations'} = [ map { name=> $_, nmb => $locations->{$_} + 1 }, sort { $locations->{$b} <=> $locations->{$a} } keys $locations ];
 
 		#lets create this dataset
 		$source->spew_raw( $coder->encode($index)  );
