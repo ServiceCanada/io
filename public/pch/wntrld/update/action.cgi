@@ -10,6 +10,7 @@ use Path::Tiny qw/path/;
 use YAML::Tiny;
 use JSON::XS;
 use Prism;
+use DateTime;
 use Storable qw/dclone/;
 
 
@@ -43,14 +44,16 @@ while( my $resource = $prism->next() ){
 
 		my $json = $coder->decode( $response->{'content'} );
 
-		my $index = { created => time, data => [], alerts => $json->{'alerts'} };
+		my $index = { created => time, data => [], alerts => $json->{'alerts'}, dates => { earliest => DateTime->now(), latest => DateTime->now() } };
 
 		my $locations = {};
 
 		foreach my $event ( @{ $json->{'data'} } ){
 
 			my $dataset = $prism->transform( $event, $resource );
+
 			my $single =  dclone($dataset);
+
 
 			$locations->{ $dataset->{'location'} }++ if ( $dataset->{'location'} ne '' );
 
@@ -61,8 +64,23 @@ while( my $resource = $prism->next() ){
 			#lets create this dataset
 			$source->sibling( $dataset->{'id'}.'.json' )->spew_raw( $coder->encode($single)  );
 
+			# datetime ranges
+			my $day = getdatetime( $dataset->{'startdate'} );
+
+			if ( DateTime->compare( $day, $index->{'dates'}->{'earliest'} ) < 0 ){
+				$index->{'dates'}->{'earliest'} = $day;
+			}
+
+			if ( DateTime->compare( $day, $index->{'dates'}->{'latest'} ) > 0 ){
+				$index->{'dates'}->{'latest'} = $day;
+			}
+
 			$cind++;
 		}
+
+		# lets set the range
+		$index->{'dates'}->{'latest'} = $index->{'dates'}->{'latest'}->ymd;
+		$index->{'dates'}->{'earliest'} = $index->{'dates'}->{'earliest'}->ymd;
 
 		# lets not forget the alerts
 		$index->{'locations'} = [ map { name=> $_, nmb => $locations->{$_} + 1 }, sort { $locations->{$b} <=> $locations->{$a} } keys $locations ];
@@ -74,3 +92,15 @@ while( my $resource = $prism->next() ){
 }
 
 # $prism->message( data => { total => $cind/2 } );
+
+
+sub getdatetime{
+	my ($timestamp) = @_;
+	my ( $year, $month, $day ) = split /-/, $timestamp;
+	return DateTime->new(
+		year => $year,
+		month => $month,
+		day => $day,
+		time_zone  => 'America/Toronto'
+	);
+}
