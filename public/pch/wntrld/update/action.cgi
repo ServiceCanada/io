@@ -11,6 +11,8 @@ use YAML::Tiny;
 use JSON::XS;
 use Prism;
 use DateTime;
+use Date::Format;
+use Date::Language;
 use Storable qw/dclone/;
 
 
@@ -48,18 +50,22 @@ while( my $resource = $prism->next() ){
 
 		my $locations = {};
 
+		my $lang = formatdate( delete $resource->{'lang'} );
+
 		foreach my $event ( @{ $json->{'data'} } ){
 
 			my $dataset = $prism->transform( $event, $resource );
 
 			my $single =  dclone($dataset);
 
-
 			$locations->{ $dataset->{'location'} }++ if ( $dataset->{'location'} ne '' );
 
 			push @{ $index->{'data'} }, $dataset;
 
 			$single->{'alerts'} = $json->{'alerts'};
+
+			# lets localize time
+			$single->{'fdate'} = $lang->{'cx'}->time2str( $lang->{'format'}, int $single->{'start'} );
 
 			#lets create this dataset
 			$source->sibling( $dataset->{'id'}.'.json' )->spew_raw( $coder->encode($single)  );
@@ -93,6 +99,13 @@ while( my $resource = $prism->next() ){
 
 # $prism->message( data => { total => $cind/2 } );
 
+sub formatdate{
+	my ($lang) = @_;
+	return {
+		format => ( $lang eq 'en') ? '%A, %B %e, %Y' : 'Le %A %e %B %Y',
+		cx => Date::Language->new( ( $lang eq 'en' ) ? 'English' : 'French' )
+	};
+}
 
 sub getdatetime{
 	my ($timestamp) = @_;
