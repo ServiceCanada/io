@@ -48,7 +48,7 @@ while( my $resource = $prism->next() ){
 
 		my $index = { created => time, data => [], alerts => $json->{'alerts'}, dates => { earliest => DateTime->now(), latest => DateTime->now() } };
 
-		my $locations = {};
+		my $destinations = {};
 
 		my $lang = formatdate( delete $resource->{'lang'} );
 
@@ -58,14 +58,17 @@ while( my $resource = $prism->next() ){
 
 			my $single =  dclone($dataset);
 
-			$locations->{ $dataset->{'location'} }++ if ( $dataset->{'location'} ne '' );
+			$destinations->{ $dataset->{'destination'} }++ if ( $dataset->{'destination'} ne '' );
 
 			push @{ $index->{'data'} }, $dataset;
 
 			$single->{'alerts'} = $json->{'alerts'};
 
 			# lets localize time
-			$single->{'fdate'} = $lang->{'cx'}->time2str( $lang->{'format'}, int $single->{'start'} );
+			$single->{'locale'}->{'date'} = $lang->{'cx'}->time2str( $lang->{'format'}, int $single->{'start'} );
+            
+			# lets localize time
+			$single->{'locale'}->{'time'} = formattime( $lang->{'iso'}, $single->{'period'} );
 
 			#lets create this dataset
 			$source->sibling( $dataset->{'id'}.'.json' )->spew_raw( $coder->encode($single)  );
@@ -89,7 +92,7 @@ while( my $resource = $prism->next() ){
 		$index->{'dates'}->{'earliest'} = $index->{'dates'}->{'earliest'}->ymd;
 
 		# lets not forget the alerts
-		$index->{'locations'} = [ map { name=> $_, nmb => $locations->{$_} + 1 }, sort { $locations->{$b} <=> $locations->{$a} } keys $locations ];
+		$index->{'destinations'} = [ map { name=> $_, nmb => $destinations->{$_} + 1 }, sort { $destinations->{$b} <=> $destinations->{$a} } keys $destinations ];
 
 		#lets create this dataset
 		$source->spew_raw( $coder->encode($index)  );
@@ -98,10 +101,40 @@ while( my $resource = $prism->next() ){
 }
 
 # $prism->message( data => { total => $cind/2 } );
+###########################################################
+# Helper functions
+##########################################################
+sub formattime
+{
+   my ( $lang,  @times ) = ( $_[0], split( /\s*-\s*/, $_[1] ) );
+      
+   my @formatted = ();
+   
+   foreach my $moment ( @times )
+   {    
+      my ($hour, $min, $daytime ) = split( /:/, $moment );
+      
+      if ( $lang ne 'en' )
+      {
+          push @formatted, ( int( $hour ).' h'.( ( $min ne '00' ) ? ' '.$min : '' ) );
+          next;
+      }
+      
+      $daytime = ( $hour > 11 ) ? 'pm' : 'am';
+      
+      $hour = ( $hour > 12 )  ? $hour - 12 : $hour;
+     
+      push @formatted, ( int( $hour ).':'.$min.' '.$daytime );
+      
+   }
+  
+   return ( $lang eq 'fr' ) ? join(  ' à ', @formatted ) : join( ' to ', @formatted ); 
+}
 
 sub formatdate{
 	my ($lang) = @_;
 	return {
+        iso => $lang,
 		format => ( $lang eq 'en') ? '%A, %B %e, %Y' : 'Le %A %e %B %Y',
 		cx => Date::Language->new( ( $lang eq 'en' ) ? 'English' : 'French' )
 	};

@@ -29,6 +29,8 @@ my $config = YAML::Tiny->read( $dir->sibling('index.yml')->stringify )->[0];
 my $stache = Mustache::Simple->new();
 my $scharacter = quotemeta('_x000D_');
 
+my %tems;
+
 my $dbh = DBI->connect(
     "dbi:SQLite:dbname=".$base->child( $config->{'database'}->{'path'} )
     ,"","",{ sqlite_unicode => 1 }
@@ -75,7 +77,6 @@ while (my $row = $csv->getline_hr($io) )
                     ? "Result ".( ($row->{'Status'} =~ /^(Completed|Complété)/ ) ? "achieved" : "anticipated" )
                     : "Résultat ".( ($row->{'Status'} =~ /^(Completed|Complété)/ ) ? "obtenu" : "escompté" );
 
-    # $row->{'Anticipated'} = ( $lang eq 'en' ) ? "Result anticipated" : "Résultat obtenu";
     $row->{'ClickForMore'} = ( $lang eq 'en' ) ? "Click to see more information" : "Cliquez pour voir plus d'informations";
     $row->{'MoreInformation'} = ( $lang eq 'en' ) ? "More Information" : "Plus d'information";
     $row->{'Label'} = label( $row->{'Status'}, $lang );
@@ -96,9 +97,9 @@ while (my $row = $csv->getline_hr($io) )
     );
     
     $row->{'Vintage'} = $config->{'datemap'}->{ $row->{'Vintage'} }->{ $lang };
-
-    $row->{'Status'} = modify( $row->{'Status'}, $lang );
     
+    $row->{'Status'} = modify( $row->{'Status'} );
+
     $rendered .= $stache->render( $mold, $row );
 }
 
@@ -122,53 +123,58 @@ sub ministers
     } 
 
     return $list."</ul>\n"; 
-} 
+}
+
+sub modify 
+{ 
+    my ($tag ) = @_;
+    
+    $tag = cleanse( $tag );
+    
+    if ( slugify( $tag ) =~ /^(actions-taken-progress-made|actions-prises-progres-accomplis)$/ )
+    {
+        $tag .= '&#8203;';
+    }
+    
+    return $tag;
+    
+}
 
 sub label 
 { 
     my ($tag, $lang) = @_;
     
-    if ( $tag =~ /(on track|en voie)$/ )
+    my $slug = slugify( $tag );
+    
+    $tag = cleanse( $tag );
+    
+    if ( $slug =~ /^(actions-taken-progress-made|actions-prises-progres-accomplis)$/ )
     {
-         return "<span class=\"label label-success underway-on-track\" style=\"background: #d0e6d0;border-color: #92c691;\">".( $lang eq 'en' ?  'Actions taken, progress made&#8203;' : 'Actions prises, progrès accomplis&#8203;' )."</span>"
+         return "<span class=\"label label-success underway-on-track\" style=\"background: #d0e6d0;border-color: #92c691;\">$tag</span>"
     }   
     
-    if ( $tag =~ /(commitment|permanent)$/ )
+    if ( $slug =~ /^(actions-taken-progress-made-toward-ongoing-goal|actions-prises-progres-accomplis-vers-un-objectif-permanent)$/ )
     {
-         return "<span class=\"label label-success guidance\"  style=\"background: #d0e6d0;border-color: #b6d9b6;\">".( $lang eq 'en' ?  'Actions taken, progress made toward ongoing goal' : 'Actions prises, progrès accomplis vers un objectif permanent' )."</span>"
+         return "<span class=\"label label-success guidance\"  style=\"background: #d0e6d0;border-color: #b6d9b6;\">$tag</span>"
     }
 
-     if ( $tag =~ /(with challenges|avec défis)$/ )
+     if ( $slug =~ /^(actions-taken-progress-made-facing-challenges|actions-prises-progres-accomplis-defis-a-relever)$/ )
     {
-         return "<span class=\"label label-success underway-with-challenges\" style=\"background: rgba(246,96,2,0.1);border-color: #f66002;\">".( $lang eq 'en' ?  'Actions taken, progress made, facing challenges' : 'Actions prises, progrès accomplis, défis à relever' )."</span>"
+         return "<span class=\"label label-success underway-with-challenges\" style=\"background: rgba(246,96,2,0.1);border-color: #f66002;\">$tag</span>"
     }
-
-    return "<span class=\"label label-success completed-fully-met\" style=\"background: #d0e6d0;border-color: #478e46;\">$tag</span>" if ( $tag =~ /(fully met|totalement)$/ ); 
-    return "<span class=\"label label-success completed-modified\" style=\"background: #d0e6d0;border-color: #65aa65;\">$tag</span>" if ( $tag =~ /(modified|modifié)$/ ); 
-    return "<span class=\"label label-success not-being-pursued\" style=\"background: rgba(231,0,0,0.1);border-color: #e70000;\">$tag</span>" if ( $tag =~ /(pursued|envisagé)$/ ); 
+    
+    if ( $slug =~ /^(completed-fully-met|complete-totalement)$/ )
+    {
+        return "<span class=\"label label-success completed-fully-met\" style=\"background: #d0e6d0;border-color: #478e46;\">$tag</span>"; 
+    }
+    
+    if ( $slug =~ /^(completed-modified|complete-modifie)$/ )
+    {
+        return "<span class=\"label label-success completed-modified\" style=\"background: #d0e6d0;border-color: #65aa65;\">$tag</span>";  
+    }
+    
+    return "<span class=\"label label-success not-being-pursued\" style=\"background: rgba(231,0,0,0.1);border-color: #e70000;\">$tag</span>"; 
 } 
-
-sub modify
-{
-     my ( $tag, $lang ) = @_;
-    
-    if ( $tag =~ /(on track|en voie)$/ )
-    {
-         return ( $lang eq 'en'  ) ?  'Actions taken, progress made&#8203;' : 'Actions prises, progrès accomplis&#8203;';
-    }
-    
-    if ( $tag =~ /(commitment|permanent)$/ )
-    {
-         return ( $lang eq 'en' ) ?  'Actions taken, progress made toward ongoing goal' : 'Actions prises, progrès accomplis vers un objectif permanent'
-    }
-
-     if ( $tag =~ /(with challenges|avec défis)$/ )
-    {
-         return ( $lang eq 'en'  ) ?  'Actions taken, progress made, facing challenges' : 'Actions prises, progrès accomplis, défis à relever' ;
-    }
-
-    return $tag;
-}
 
 
 sub otherlinks 
@@ -190,6 +196,16 @@ sub compress {
     my ( $text ) = @_;
     $text =~ s/[\n\r]+/<br \/>\n/g;
     $text =~ s/<\/p><br \/>/<\/p>/g;
+    return $text;
+}
+
+sub cleanse
+{
+    my ( $text ) = @_;
+    $text =~ s/^\s+//;
+    $text =~ s/\s+$//;
+    $text =~ s/\n+/ /gs;
+    $text =~ s/\s+/ /g;
     return $text;
 }
 
@@ -218,6 +234,17 @@ sub stripMarkdown
     $text =~ s/_//g;
     $text =~ s/\+//g;
     return $text;
+}
+
+sub slugify
+{
+    my ( $text ) = @_;
+    $text = normalize( $text );
+    # remove accents
+    $text = stripaccents( $text );
+    $text =~ s/[^a-z0-9]+/-/gi;
+    $text =~ s/[-]+/-/g;
+    return lc($text); 
 }
 
 sub generate
