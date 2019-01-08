@@ -15,7 +15,6 @@ use YAML::Tiny;
 use Text::CSV_XS;
 use DateTime;
 use Digest::SHA qw/sha256_hex/;
-use File::ReadBackwards;
 
 # =================
 # = PREPROCESSING =
@@ -53,10 +52,10 @@ while ( my $resource = $prism->next() )
         my $rez = dclone( $resource );
 		
         my $dataset = $prism->transform( $row, $rez );
-		
-		if ( $ARGV[0] ne 'seed' && $latest >= $dataset->{'date'} )
+        
+		if ( $ARGV[0] ne 'seed' && $latest > $dataset->{'date'} )
 		{
-			say "	[skipping] duplicate ".$dataset->{'url'};
+			say "	[skipping] already indexed ".$dataset->{'url'};
 			next;
 		}
 		

@@ -17,7 +17,7 @@ use Storable qw/dclone/;
 # = PREPROCESSING =
 # =================
 
-my $prism = Prism->new( file => ($ARGV[0] eq 'seed') ? 'seed.yml' : 'update.yml' );
+my $prism = Prism->new( file => ($ARGV[0] eq 'seed') ? 'seed.yml' : 'update.yml', agent => 'Auditor (io.canada.ca:v1.2)' );
 
 my $dbh = DBI->connect(
     "dbi:SQLite:dbname=".$prism->parent('public')->sibling(  $prism->config->{'database'}->{'path'} )
@@ -30,8 +30,7 @@ my $add = $dbh->prepare( $prism->config->{'database'}->{'sql'}->{'create'} );
 
 while (my $resource = $prism->next() )
 {
-	say "[trying] $resource->{'uri'}";
-	
+    
     my $io = $coder->decode( $prism->get( $resource->{'uri'} )->{'content'} );
     
     foreach my $recall (  @{ $io->{'results'} }  )
@@ -47,7 +46,10 @@ while (my $resource = $prism->next() )
 			say " [skipping] duplicate $url";
 			next;
 		}
-                
+        
+        # lets make sure we do not throttle the service
+        sleep( 1 );        
+        
         my $data = $coder->decode( $prism->get( $url )->{'content'} );
         
         # lets set the category and sub category
@@ -58,11 +60,18 @@ while (my $resource = $prism->next() )
         my @secs = ( $section =~ m/<b>(Catégorie|Category):<\/b>(.*?)<BR\/>/ );
 
         my $rez = dclone( $resource );
-
+        
         my $dataset = $prism->transform( $data, $rez );
 		
 		# lets remap the id since this based on the asking URL
 		$dataset->{'id'} = $uid ;
+        
+        # lets make sure we have a title
+        unless ( $dataset->{'title'} ||  $dataset->{'title'} ne '' )
+        {
+            say " [skipping] empty recordet $url";
+            next;
+        }
 
         my $categories = categorize ( pop @secs );
 
