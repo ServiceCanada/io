@@ -33,70 +33,69 @@ my $cind = 0;
 
 while( my $resource = $prism->next() ){
 
-	my $response = $prism->get( $resource->{'uri'}, "isGZ" );
+	my $io = $prism->download( $resource->{'uri'}, $resource->{'source'} , "decompress" );
 
-	# lets skip if nothing is there
-	next unless ( $response->{'success'} );
+    unless ( $io )
+    {
+        say "[winterlude] skipping resource not modified ".$resource->{'uri'};
+        next;
+    }
+    
+	my $source = $datadir->child( substr($resource->{'source'}, 6) )->touchpath;
 
-	path($0)->sibling( $resource->{'source'} )->touchpath->spew_raw( $response->{'content'});
+	my $json = $coder->decode( $io->slurp_raw );
 
-	my $source = $datadir->child( $resource->{'source'} )->touchpath;
+	my $index = { created => time, data => [], alerts => $json->{'alerts'}, dates => { earliest => DateTime->now(), latest => DateTime->now() } };
 
-	if ( $response->{success} ){
+	my $destinations = {};
 
-		my $json = $coder->decode( $response->{'content'} );
+	my $lang = formatdate( delete $resource->{'lang'} );
 
-		my $index = { created => time, data => [], alerts => $json->{'alerts'}, dates => { earliest => DateTime->now(), latest => DateTime->now() } };
+	foreach my $event ( @{ $json->{'data'} } ){
 
-		my $destinations = {};
+		my $dataset = $prism->transform( $event, $resource );
 
-		my $lang = formatdate( delete $resource->{'lang'} );
+		my $single =  dclone($dataset);
 
-		foreach my $event ( @{ $json->{'data'} } ){
+		$destinations->{ $dataset->{'destination'} }++ if ( $dataset->{'destination'} ne '' );
 
-			my $dataset = $prism->transform( $event, $resource );
+		push @{ $index->{'data'} }, $dataset;
 
-			my $single =  dclone($dataset);
+		$single->{'alerts'} = $json->{'alerts'};
 
-			$destinations->{ $dataset->{'destination'} }++ if ( $dataset->{'destination'} ne '' );
-
-			push @{ $index->{'data'} }, $dataset;
-
-			$single->{'alerts'} = $json->{'alerts'};
-
-			# lets localize time
-			$single->{'locale'}->{'date'} = $lang->{'cx'}->time2str( $lang->{'format'}, int $single->{'start'} );
-            
-			# lets localize time
-			$single->{'locale'}->{'time'} = formattime( $lang->{'iso'}, $single->{'period'} );
-
-			#lets create this dataset
-			$source->sibling( $dataset->{'id'}.'.json' )->spew_raw( $coder->encode($single)  );
-
-			# datetime ranges
-			my $day = getdatetime( $dataset->{'startdate'} );
-
-			if ( DateTime->compare( $day, $index->{'dates'}->{'earliest'} ) < 0 ){
-				$index->{'dates'}->{'earliest'} = $day;
-			}
-
-			if ( DateTime->compare( $day, $index->{'dates'}->{'latest'} ) > 0 ){
-				$index->{'dates'}->{'latest'} = $day;
-			}
-
-			$cind++;
-		}
-
-		# lets set the range
-		$index->{'dates'}->{'latest'} = $index->{'dates'}->{'latest'}->ymd;
-		$index->{'dates'}->{'earliest'} = $index->{'dates'}->{'earliest'}->ymd;
-
-		# lets not forget the alerts
-		$index->{'destinations'} = [ map { name=> $_, nmb => $destinations->{$_} + 1 }, sort { $destinations->{$b} <=> $destinations->{$a} } keys $destinations ];
+		# lets localize time
+		$single->{'locale'}->{'date'} = $lang->{'cx'}->time2str( $lang->{'format'}, int $single->{'start'} );
+        
+		# lets localize time
+		$single->{'locale'}->{'time'} = formattime( $lang->{'iso'}, $single->{'period'} );
 
 		#lets create this dataset
-		$source->spew_raw( $coder->encode($index)  );
+		$source->sibling( $dataset->{'id'}.'.json' )->spew_raw( $coder->encode($single)  );
+
+		# datetime ranges
+		my $day = getdatetime( $dataset->{'startdate'} );
+
+		if ( DateTime->compare( $day, $index->{'dates'}->{'earliest'} ) < 0 ){
+			$index->{'dates'}->{'earliest'} = $day;
+		}
+
+		if ( DateTime->compare( $day, $index->{'dates'}->{'latest'} ) > 0 ){
+			$index->{'dates'}->{'latest'} = $day;
+		}
+
+		$cind++;
 	}
+
+	# lets set the range
+	$index->{'dates'}->{'latest'} = $index->{'dates'}->{'latest'}->ymd;
+	$index->{'dates'}->{'earliest'} = $index->{'dates'}->{'earliest'}->ymd;
+
+	# lets not forget the alerts
+	$index->{'destinations'} = [ map { name=> $_, nmb => $destinations->{$_} + 1 }, sort { $destinations->{$b} <=> $destinations->{$a} } keys $destinations ];
+
+	#lets create this dataset
+	$source->spew_raw( $coder->encode($index)  );
+
 
 }
 
