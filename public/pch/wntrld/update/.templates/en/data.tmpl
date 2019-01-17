@@ -1,0 +1,14 @@
+<tbody>
+    {{#data}}
+    <tr property="subEvent" typeof="Event">
+        <td class="nws-tbl-ttl h5"><a href="/content/canadasite/en/canadian-heritage/campaigns/winterlude/calendar-events/events/{{{ id }}}.html" property="url"><span property="name">{{{ nolnktitle }}}</span></a></td>
+        <td class="wb-inv pull-right" property="destination"><span class="brdr-tp brdr-bttm brdr-lft brdr-rght pln">{{{ destination }}}</span></td>
+        <td class="nws-tbl-date">{{ startdate }}</td>
+        <td class="wb-inv nws-tbl-date">{{ starttime }}</td>
+        <td class="nws-tbl-type">{{{ period }}}</td>
+        <td class="nws-tbl-dept" property="location"><strong>{{{ location }}}</strong></td>
+        <td class="nws-tbl-desc" property="description">{{{ teaser }}}</td>
+        <td class="wb-inv" property="description">{{{ description }}}</td>
+    </tr>
+    {{/data}}
+</tbody>

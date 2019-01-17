@@ -15,12 +15,17 @@ use Date::Format;
 use Date::Language;
 use Storable qw/dclone/;
 
+use Mustache::Simple;
+use Archive::Zip;
+
 
 # =================
 # = Globals =
 # =================
 
 my $datadir = path($0)->parent(2);
+my $template = path($0)->sibling('.templates');
+my $stache = Mustache::Simple->new();
 
 # =================
 # = PREPROCESSING =
@@ -31,18 +36,24 @@ my $coder = JSON::XS->new->utf8;
 
 my $cind = 0;
 
+my $update = 0;
+
 while( my $resource = $prism->next() ){
 
 	my $io = $prism->download( $resource->{'uri'}, $resource->{'source'} , "decompress" );
-
+    
     unless ( $io )
     {
         say "[winterlude] skipping resource not modified ".$resource->{'uri'};
         next;
     }
     
+    my $tfile = $template->child( join('/', ( substr( $resource->{'source'}, 7, 2 ), 'data.tmpl') ) );
+    
+    $update = 1;
+    
 	my $source = $datadir->child( substr($resource->{'source'}, 6) )->touchpath;
-
+    
 	my $json = $coder->decode( $io->slurp_raw );
 
 	my $index = { created => time, data => [], alerts => $json->{'alerts'}, dates => { earliest => DateTime->now(), latest => DateTime->now() } };
@@ -94,9 +105,25 @@ while( my $resource = $prism->next() ){
 	$index->{'destinations'} = [ map { name=> $_, nmb => $destinations->{$_} + 1 }, sort { $destinations->{$b} <=> $destinations->{$a} } keys $destinations ];
 
 	#lets create this dataset
-	$source->spew_raw( $coder->encode($index)  );
+	$source->spew_raw( $coder->encode( $index ) );
+    
+    $index->{'data'} = $stache->render( $tfile->slurp_utf8 , $index );
+    
+    $index->{'data'} =~ s/[\n]+//sg;
+    $index->{'data'} =~ s/[\s]+/ /g;
+        
+    $source->sibling( 'clndr.json' )->spew_raw( $coder->encode( $index ) );
 
+}
 
+if ( $update )
+{
+
+    my $zip = Archive::Zip->new();
+    
+    $zip->addTree( $datadir->child( $_ )->absolute->realpath->stringify, $_ ) for ('en', 'fr');
+    
+    $zip->overwriteAs({ filename => $datadir->child('all.zip')->absolute->realpath->stringify });
 }
 
 # $prism->message( data => { total => $cind/2 } );
@@ -130,7 +157,8 @@ sub formattime
    return ( $lang eq 'fr' ) ? join(  ' à ', @formatted ) : join( ' to ', @formatted ); 
 }
 
-sub formatdate{
+sub formatdate
+{
 	my ($lang) = @_;
 	return {
         iso => $lang,
@@ -139,7 +167,8 @@ sub formatdate{
 	};
 }
 
-sub getdatetime{
+sub getdatetime
+{
 	my ($timestamp) = @_;
 	my ( $year, $month, $day ) = split /-/, $timestamp;
 	return DateTime->new(

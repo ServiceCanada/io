@@ -1,0 +1,69 @@
+<!-- With meta data -->
+<div typeof="Event">
+    {{#alerts}}
+    <section class="alert alert-info">
+        <h2>{{title}}</h2>
+        <p>{{description}}</p>
+    </section>
+    {{/alerts}}
+    <p>Il y a tant à voir et à faire au Bal de Neige! Consultez le calendrier des activités et utilisez les filtres pour mieux cibler votre recherche.</p>
+    <div class="row">
+        <div class="col-md-3">
+            <form aria-controls="eventslist" class="wb-tables-filter" data-bind-to="eventslist" data-gc-analytics-formname="PCH - Winterlude Activities Date Search and Location Filter | Filtre de recherche des dates et des lieux des activités du Bal de Neige">
+                <h2 class="mrgn-tp-lg">Filtres</h2>
+                <div class="form-group">
+                    <h3 class="h4 mrgn-tp-lg mrgn-bttm-sm"><label for="edate">Date</label></h3>
+                    <p class="wb-inv">Date de l'activité<span class="datepicker-format"> (<abbr title="Quatre chiffres année, tiret, deux chiffres mois, tiret, deux chiffres jour">YYYY-MM-DD</abbr>)</span></p>
+                    <input class="form-control" type="date" id="edate" name="edate" min="2019-02-01" max="2019-02-19" style="line-height:normal" data-column="2" data-gc-analytics-collect="notPrivate" />
+                </div>
+                <div class="form-group">
+                    <h3 class="h4 mrgn-tp-lg mrgn-bttm-sm"><label for="dt-topic">Destination</label></h3>
+                    <select id="dt-topic" name="dt-topic" class="form-control" data-gc-analytics-collect="notPrivate" data-column="1">
+                        <option value=" ">Toutes les destinations</option>
+                        {{#destinations}}
+                        <option value="{{name}}" data-gc-analytics-collect="notPrivate">{{name}}</option>
+                        {{/destinations}}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <h3 class="h4"><label for="dt-theme">Thème</label></h3>
+                    <select id="dt-theme" name="dt-theme" class="form-control" data-gc-analytics-collect="notPrivate" data-column="7">
+                        <option value=" ">Tous les thèmes</option>
+                        <option value="[Culture autochtone]" data-gc-analytics-collect="notPrivate">Culture autochtone</option>
+                        <option value="[LGBTQ2+]" data-gc-analytics-collect="notPrivate">LGBTQ2+</option>
+                        <option value="[Famille]" data-gc-analytics-collect="notPrivate">Famille</option>
+                        <option value="[Nourriture et boisson]" data-gc-analytics-collect="notPrivate">Nourriture et boisson</option>
+                        <option value="[Art et culture]" data-gc-analytics-collect="notPrivate">Art et culture</option>
+                        <option value="[Sport]" data-gc-analytics-collect="notPrivate">Sport</option>
+                    </select>
+                </div>
+                <button class="mrgn-tp-lg btn btn-primary btn-block btn-sm" type="submit" data-gc-analytics-formsubmit="submit">Appliquer les filtres</button>
+                <button class="btn btn-default btn-block btn-sm" type="reset">Réinitialiser les filtres</button>
+            </form>
+        </div>
+        <div class="col-md-9">
+            <h2 class="mrgn-tp-lg">Liste d'activités</h2>
+            <table id="eventslist" class="table wb-tables nws-tbl table-striped" data-wb-tables-color=".pkey" data-wb5-bind="[data-wbtbl-draw]" data-wb-tables='{ 
+"paging" : true, 
+"order": [[ 2, "asc" ], [ 3, "asc" ]], 
+"pageLength": 25, 
+"columnDefs": [ { "targets": [7], "visible": false }, { "targets": [0,1,2,3,4,5,6], "orderable": false } ], 
+"language": { "search": "Trier par mot(s)-clé(s)"} 
+}'>
+                <thead tabindex="-1">
+                    <tr tabindex="-1">
+                        <th class="wb-inv" tabindex="-1">Activités</th>
+                        <th class="wb-inv" tabindex="-1">Destination</th>
+                        <th class="wb-inv" tabindex="-1">Jour</th>
+                        <th class="wb-inv" tabindex="-1">Heure de début</th>
+                        <th class="wb-inv" tabindex="-1">L'heure</th>
+                        <th class="wb-inv" tabindex="-1">Location</th>
+                        <th class="wb-inv" tabindex="-1">Teaser</th>
+                        <th class="wb-inv" tabindex="-1">Description</th>
+                    </tr>
+                </thead>
+                {{ tbody }}
+            </table>
+        </div>
+    </div>
+</div>
