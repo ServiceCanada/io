@@ -106,7 +106,19 @@ while( my $resource = $prism->next() ){
 
 	#lets create this dataset
 	$source->spew_raw( $coder->encode( $index ) );
-    
+
+	# Febuary 2nd, 2019 [ ticket #BSD-7466 ]
+	#  - required intelligent sort for table to mirror datatable sort to lessen user experience jarring
+	my @sorted = sort { DateTime->compare( 
+							getdatetime( $a->{'startdate'}, $a->{'starttime'} ),
+							getdatetime( $b->{'startdate'}, $b->{'starttime'} )
+							)
+					} @{ $index->{'data'} };
+
+    $index->{'data'} = \@sorted ;
+
+    # Febuary 2nd, 2019 [ ticket #BSD-7466 ]
+    #  - mirror fix to output template
     $index->{'data'} = $stache->render( $tfile->slurp_utf8 , $index );
     
     $index->{'data'} =~ s/[\n]+//sg;
@@ -169,8 +181,22 @@ sub formatdate
 
 sub getdatetime
 {
-	my ($timestamp) = @_;
-	my ( $year, $month, $day ) = split /-/, $timestamp;
+	my ($date, $time ) = @_;
+	my ( $year, $month, $day ) = split /-/, $date;
+	if ( $time )
+	{
+		my ( $hour, $min, $sec ) = split /\:/, $time;
+
+		return DateTime->new(
+			year => $year,
+			month => $month,
+			day => $day,
+			hour => $hour,
+			minute => $min,
+			second => $sec,
+			time_zone  => 'America/Toronto'
+		);
+	}
 	return DateTime->new(
 		year => $year,
 		month => $month,

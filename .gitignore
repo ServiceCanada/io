@@ -248,3 +248,6 @@ $RECYCLE.BIN/
 /private/demo
 *.lkg.*
 .idea
+.uploads
+.cache
+
