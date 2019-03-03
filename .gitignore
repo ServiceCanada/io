@@ -245,3 +245,6 @@ $RECYCLE.BIN/
 
 *.csv
 *.xml
+/private/demo
+*.lkg.*
+.idea

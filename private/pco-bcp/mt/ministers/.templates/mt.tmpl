@@ -1,0 +1,17 @@
+<tr style="padding:1em 0"> 
+<td class="wb-inv">{{{ Status }}}</td>
+<td class="nws-tbl-priority pull-left"><p><span class="label brdr-tp brdr-bttm brdr-lft brdr-rght pln">{{ Priority }}</span></td>
+<td class="nws-tbl-date commit tp-rail mrgn-bttm-md" style="min-width:100%;max-width:100%">{{{ Commitment }}}</td>
+<td class="nws-tbl-date status mrgn-bttm-md" style="display: block;margin-bottom: 1.25em">{{{ Label }}}</td> 
+<td class="nws-tbl-desc">
+<p><strong><u>{{{ Anticipated }}}</u>{{{ FrenchSpace }}}:</strong>&nbsp;{{{ Statement }}}
+<details>
+<summary data-gc-analytics-mt="{{ Priority }}:{{{ Status }}}:{{ sStatement }}">{{{ ClickForMore }}}</summary>
+{{{ Comment }}}
+{{#OtherLinks}}<p>{{{ MoreInformation }}}</p>{{{ OtherLinks }}}{{/OtherLinks}}
+{{{ MinList }}}
+</details>
+</td>
+<td class="nws-tbl-priority1 button wb-inv">{{#Highlight}}{{{ Highlight }}}{{/Highlight}}{{^Highlight}}9999{{/Highlight}}</td>
+<td class="wb-inv">{{ Vintage }}</td>
+</tr>

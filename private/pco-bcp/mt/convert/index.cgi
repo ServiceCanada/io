@@ -31,10 +31,10 @@ my $scharacter = quotemeta('_x000D_');
 
 my %tems;
 
-my $dbh = DBI->connect(
-    "dbi:SQLite:dbname=".$base->child( $config->{'database'}->{'path'} )
-    ,"","",{ sqlite_unicode => 1 }
-);
+#my $dbh = DBI->connect(
+#    "dbi:SQLite:dbname=".$base->child( $config->{'database'}->{'path'} )
+ #   ,"","",{ sqlite_unicode => 1 }
+#);
 
 my $cgi = CGI->new();
 
@@ -118,7 +118,10 @@ sub ministers
     $list .= "\n<ul>\n"; 
     foreach my $minister ( split /;/, $ministers ) 
     { 
-        my ($link, $title) =  $dbh->selectrow_array('SELECT link, title FROM ministers WHERE id = ? LIMIT 1', {}, generate( $minister ) );
+        #my ($link, $title) =  $dbh->selectrow_array('SELECT link, title FROM ministers WHERE id = ? LIMIT 1', {}, generate( $minister ) );
+        my $ref = $config->{'ministers'}->{ slugify( $minister ) };
+        my ( $link, $title ) = ( $ref->{'link'}, $ref->{'title'} );
+
         $list .= "<li><a href=\"$link\">$title</a></li>\n"; 
     } 
 
@@ -133,7 +136,7 @@ sub modify
     
     if ( slugify( $tag ) =~ /^(actions-taken-progress-made|actions-prises-progres-accomplis)$/ )
     {
-        $tag .= '&#8203;';
+        $tag .= '&#8203;' 
     }
     
     return $tag;

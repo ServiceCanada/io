@@ -15,6 +15,7 @@ use Mustache::Simple;
 use CGI qw(-utf8);
 use HTML::Entities;
 
+use Time::Piece;
 use Text::Markdown 'markdown';
 use Text::StripAccents;
 
@@ -66,8 +67,8 @@ while (my $row = $csv->getline_hr($io) )
     next unless ( $row->{'owner_org'} );
 
     my $dataset = {
-        start_date => $row->{'start_date'},
-        end_date => $row->{'end_date'},
+        start_date => dateformat( $row->{'start_date'} ),
+        end_date => dateformat( $row->{'end_date'} ),
         status => extroplate( $row->{'status'}, $lang, $status ),
         subject => extroplate( $row->{'subjects'}, $lang, $rolodex ),
         title => ( $lang eq 'en' )  ? $row->{'title_en'} : $row->{'title_fr'},
@@ -88,9 +89,9 @@ while (my $row = $csv->getline_hr($io) )
 # ============
 print $stache->render( $dir->sibling('complete.html')->slurp_utf8, { rendered => $rendered } );
 
-# ====================
-# = HELPER FUNCTIONS =
-# ====================
+# ----------------------------------------------------------------------------------------------
+# Functions
+# ..............................................................................................
 sub extroplate 
 {     
     my ($text, $lang, $dictionary ) = @_;
@@ -139,7 +140,6 @@ sub begins_with
     return substr($_[0], 0, length($_[1])) eq $_[1];
 }
 
-#FUNCTIONS
 sub sanitize
 {
     my ( $text ) = @_;
@@ -154,4 +154,13 @@ sub generate
     $text = stripaccents($text);
     $text =~ s/[^a-z]//gi;
     return lc($text);
+}
+
+sub dateformat
+{
+    my ($dstr) = @_;
+    my $tmsp = Time::Piece->strptime($dstr, '%Y-%m-%d');
+    return ($lang eq 'en')
+                ? $tmsp->month( @{ $config->{'dates'}->{'months'}->{'en'} } )." ".$tmsp->mday.", ".$tmsp->year
+                : $tmsp->mday." ".$tmsp->month( @{ $config->{'dates'}->{'months'}->{'fr'} } )." ".$tmsp->year;
 }
